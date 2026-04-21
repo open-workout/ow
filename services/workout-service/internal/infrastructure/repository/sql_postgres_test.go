@@ -3,9 +3,11 @@ package repository_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/open-workout/ow/internal/domain"
 	"github.com/open-workout/ow/internal/infrastructure/repository"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -53,8 +55,15 @@ func setupTestDB(t *testing.T) (*sql.DB, func()) {
 	}
 
 	cleanup := func() {
-		db.Close()
-		container.Terminate(ctx)
+		err := db.Close()
+		if err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
+
+		err = container.Terminate(ctx)
+		if err != nil {
+			t.Fatalf("Failed to terminate container: %v", err)
+		}
 	}
 
 	return db, cleanup
@@ -125,9 +134,86 @@ func TestCreateWorkout_Postgres(t *testing.T) {
 	}
 }
 
+func TestNoWorkoutsWithTheSameID_Postgres(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+	workout1 := &domain.WorkoutModel{
+		WorkoutID: 100,
+		UserID:    1,
+	}
+
+	workout2 := &domain.WorkoutModel{
+		WorkoutID: 100,
+		UserID:    2,
+	}
+
+	_, err := repo.CreateWorkout(context.Background(), workout1)
+	if err != nil {
+		t.Fatalf("Failed to create workout: %v", err)
+	}
+	_, err = repo.CreateWorkout(context.Background(), workout2)
+	if err == nil {
+		t.Fatalf("Expected duplicate ID error, got nil")
+	}
+
+	var pqErr *pq.Error
+	ok := errors.As(err, &pqErr)
+
+	if !ok {
+		t.Fatalf("Expected pq.Error, got %T", err)
+	}
+
+	if pqErr.Code != "23505" { // Code for unique violation
+		t.Fatalf("Expected pq.Error.Code, got %s", pqErr.Code)
+	}
+}
+
 // ----------------------------------
 // SET tests
 // ----------------------------------
+
+func TestAllowsSetsWithSameWorkoutIDAndExerciseID_Postgres(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+	set1 := &domain.SetModel{
+		WorkoutID:  100,
+		ExerciseID: 1,
+		Reps:       1,
+		Difficulty: 2,
+		Weight:     3,
+		LoggedAt:   time.Now(),
+	}
+
+	set2 := &domain.SetModel{
+		WorkoutID:  100,
+		ExerciseID: 1,
+		Reps:       1,
+		Difficulty: 2,
+		Weight:     3,
+		LoggedAt:   time.Now(),
+	}
+
+	_, err := repo.CreateSet(context.Background(), set1)
+	if err != nil {
+		t.Fatalf("Failed to create set: %v", err)
+	}
+
+	_, err = repo.CreateSet(context.Background(), set2)
+	if err != nil {
+		t.Fatalf("Failed to create set: %v", err)
+	}
+
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM workout_sets WHERE workout_id=100 AND exercise_id=1").Scan(&count)
+
+	if count != 2 {
+		t.Fatalf("Wrong number of sets: %d", count)
+	}
+}
 
 func TestCreateSet_Postgres(t *testing.T) {
 	db, cleanup := setupTestDB(t)
