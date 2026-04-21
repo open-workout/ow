@@ -3,9 +3,11 @@ on:
   push:
     paths:
       - "services/workout-service/**"
+      - ".github/workflows/workout-service-ci.yml"
   pull_request:
     paths:
       - "services/workout-service/**"
+      - ".github/workflows/workout-service-ci.yml"
 jobs:
   test:
     runs-on: ubuntu-22.04
@@ -16,8 +18,13 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.25.0"
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('services/workout-service/go.sum') }}
       - name: Install dependencies
-        working-directory: workout-service
+        working-directory: services/workout-service
         run: go mod download
       - name: Run tests
         working-directory: workout-service
