@@ -6,8 +6,10 @@ import (
 )
 
 type WorkoutModel struct {
-	WorkoutID int `json:"workout_id"`
-	UserID    int `json:"user_id"`
+	WorkoutID  int       `json:"workout_id"`
+	UserID     int       `json:"user_id"`
+	StartedAt  time.Time `json:"started_at"`
+	FinishedAt time.Time `json:"finished_at,omitempty"`
 }
 
 type SetModel struct {
