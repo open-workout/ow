@@ -21,21 +21,27 @@ func NewSqlRepository(db *sql.DB) *SqlRepository {
 func (r *SqlRepository) CreateWorkout(ctx context.Context, workout *domain.WorkoutModel) (*domain.WorkoutModel, error) {
 
 	query := `
-		INSERT INTO workouts (id, user_id)
-		VALUES ($1, $2)
+		INSERT INTO workouts (user_id, started_at, finished_at)
+		VALUES ($1, $2, $3)
+		RETURNING workout_id
 	`
 
-	_, err := r.db.ExecContext(ctx, query, workout.ID, workout.UserID)
+	var workoutId int
+
+	err := r.db.QueryRowContext(ctx, query, workout.UserID, workout.StartedAt, sql.NullTime{}).Scan(&workoutId)
 	if err != nil {
 		return nil, err
 	}
+
+	workout.WorkoutID = workoutId
 	return workout, nil
+
 }
 
 func (r *SqlRepository) CreateSet(ctx context.Context, set *domain.SetModel) (*domain.SetModel, error) {
 
 	query := `
-		INSERT INTO sets (workout_id, exercise_id, reps, difficulty, weight, logged_at)
+		INSERT INTO workout_sets (workout_id, exercise_id, reps, difficulty, weight, logged_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
