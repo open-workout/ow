@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/open-workout/ow/internal/domain"
 )
@@ -18,6 +19,44 @@ func NewSqlRepository(db *sql.DB) *SqlRepository {
 }
 
 func (r *SqlRepository) CreateWorkout(ctx context.Context, workout *domain.WorkoutModel) (*domain.WorkoutModel, error) {
-	// TODO
+
+	query := `
+		INSERT INTO workouts (id, user_id)
+		VALUES ($1, $2)
+	`
+
+	_, err := r.db.ExecContext(ctx, query, workout.ID, workout.UserID)
+	if err != nil {
+		return nil, err
+	}
 	return workout, nil
+}
+
+func (r *SqlRepository) CreateSet(ctx context.Context, set *domain.SetModel) (*domain.SetModel, error) {
+
+	query := `
+		INSERT INTO sets (workout_id, exercise_id, reps, difficulty, weight, logged_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+
+	loggedAt := time.Now()
+
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		set.WorkoutID,
+		set.ExerciseID,
+		set.Reps,
+		set.Difficulty,
+		set.Weight,
+		loggedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	set.LoggedAt = loggedAt
+
+	return set, nil
 }
