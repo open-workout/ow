@@ -27,5 +27,5 @@ jobs:
         working-directory: services/workout-service
         run: go mod download
       - name: Run tests
-        working-directory: workout-service
+        working-directory: services/workout-service
         run: go test ./... -v
