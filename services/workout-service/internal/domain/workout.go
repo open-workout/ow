@@ -6,13 +6,13 @@ import (
 )
 
 type WorkoutModel struct {
-	ID     string `json:"id"`
-	UserID string `json:"user_id"`
+	WorkoutID int `json:"workout_id"`
+	UserID    int `json:"user_id"`
 }
 
 type SetModel struct {
-	WorkoutID  string    `json:"workout_id"`
-	ExerciseID string    `json:"exercise_id"`
+	WorkoutID  int       `json:"workout_id"`
+	ExerciseID int       `json:"exercise_id"`
 	Reps       int       `json:"reps"`
 	Difficulty int       `json:"difficulty"`
 	Weight     float64   `json:"weight"`

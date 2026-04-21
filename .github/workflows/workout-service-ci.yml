@@ -1,0 +1,22 @@
+name: workout-service-ci.yml
+on:
+  push:
+    paths:
+      - "workout-service/**"
+  pull_request:
+    paths:
+      - "workout-service/**"
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+      - name: Install dependencies
+        working-directory: workout-service
+        run: go mod download
+      - name: Run tests
+        working-directory: workout-service
+        run: go test ./... -v
