@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/open-workout/ow/internal/domain"
+	"github.com/open-workout/ow/services/workout-service/internal/domain"
 	"github.com/redis/go-redis/v9"
 )
 

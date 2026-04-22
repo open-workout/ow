@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/open-workout/ow/internal/domain"
+	"github.com/open-workout/ow/services/workout-service/internal/domain"
 )
 
 type SqlRepository struct {

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-workout/ow/internal/domain"
-	"github.com/open-workout/ow/internal/infrastructure/repository"
+	"github.com/open-workout/ow/services/workout-service/internal/domain"
+	"github.com/open-workout/ow/services/workout-service/internal/infrastructure/repository"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 
 	_ "github.com/lib/pq"
