@@ -1,9 +1,6 @@
-package domain
+package workout
 
-import (
-	"context"
-	"time"
-)
+import "time"
 
 type SetModel struct {
 	WorkoutID  int       `json:"workout_id"`
@@ -19,16 +16,4 @@ type WorkoutModel struct {
 	UserID     int       `json:"user_id"`
 	StartedAt  time.Time `json:"started_at"`
 	FinishedAt time.Time `json:"finished_at,omitempty"`
-}
-
-type WorkoutRepository interface {
-	CreateWorkout(ctx context.Context, workout *WorkoutModel) (*WorkoutModel, error)
-
-	CreateSet(ctx context.Context, set *SetModel) (*SetModel, error)
-}
-
-type WorkoutService interface {
-	CreateWorkout(ctx context.Context, workout *WorkoutModel) (*WorkoutModel, error)
-
-	CreateSet(ctx context.Context, set *SetModel) (*SetModel, error)
 }
