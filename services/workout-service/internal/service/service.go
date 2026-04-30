@@ -21,3 +21,11 @@ func (s *Service) CreateWorkout(ctx context.Context, workout *domain.WorkoutMode
 	}
 	return w, nil
 }
+
+func (s *Service) CreateSet(ctx context.Context, workoutSet *domain.SetModel) (*domain.SetModel, error) {
+	w, err := s.repo.CreateSet(ctx, workoutSet)
+	if err != nil {
+		return &domain.SetModel{}, err
+	}
+	return w, nil
+}

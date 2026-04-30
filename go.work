@@ -4,4 +4,5 @@ use (
 	./services/api-gateway
 	./services/workout-service
 	./shared/contracts
+	services/exercise-service
 )

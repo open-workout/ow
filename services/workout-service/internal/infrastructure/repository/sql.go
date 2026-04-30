@@ -26,7 +26,7 @@ func (r *SqlRepository) CreateWorkout(ctx context.Context, workout *domain.Worko
 		RETURNING workout_id
 	`
 
-	var workoutId int
+	var workoutId int64
 
 	err := r.db.QueryRowContext(ctx, query, workout.UserID, workout.StartedAt, sql.NullTime{}).Scan(&workoutId)
 	if err != nil {
