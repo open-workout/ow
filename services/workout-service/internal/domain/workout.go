@@ -23,12 +23,20 @@ type WorkoutModel struct {
 
 type WorkoutRepository interface {
 	CreateWorkout(ctx context.Context, workout *WorkoutModel) (*WorkoutModel, error)
+	SetWorkoutFinishTime(ctx context.Context, workoutId int64, finishedAt time.Time) error
+	GetWorkoutById(ctx context.Context, workoutId int64) (*WorkoutModel, error)
 
 	CreateSet(ctx context.Context, set *SetModel) (*SetModel, error)
+
+	GetLastTimeMaxSet(ctx context.Context, userId int64, exerciseId int64) (*SetModel, error)
 }
 
 type WorkoutService interface {
 	CreateWorkout(ctx context.Context, workout *WorkoutModel) (*WorkoutModel, error)
+	SetWorkoutFinishTime(ctx context.Context, workoutId int64, finishedAt time.Time) error
+	GetWorkoutById(ctx context.Context, workoutId int64) (*WorkoutModel, error)
 
 	CreateSet(ctx context.Context, set *SetModel) (*SetModel, error)
+
+	GetLastTimeMaxSet(ctx context.Context, userId int64, exerciseId int64) (*SetModel, error)
 }
