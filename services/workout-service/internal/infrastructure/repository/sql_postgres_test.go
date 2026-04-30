@@ -104,8 +104,8 @@ func TestCreateWorkout_Postgres(t *testing.T) {
 	repo := repository.NewSqlRepository(db)
 
 	workout := &domain.WorkoutModel{
-		WorkoutID: 100,
 		UserID:    1,
+		StartedAt: time.Now(),
 	}
 
 	_, err := repo.CreateWorkout(context.Background(), workout)
@@ -129,6 +129,30 @@ func TestCreateWorkout_Postgres(t *testing.T) {
 	}
 	if insertedUserID != workout.UserID {
 		t.Fatalf("Wrong workout WorkoutID: %d", insertedUserID)
+	}
+}
+
+func TestGetWorkoutByID_Postgres(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+	workout := &domain.WorkoutModel{
+		UserID:    1,
+		StartedAt: time.Now(),
+	}
+
+	_, err := repo.CreateWorkout(context.Background(), workout)
+	if err != nil {
+		t.Fatalf("Failed to create workout: %v", err)
+	}
+
+	newWorkout, err := repo.GetWorkoutById(context.Background(), workout.WorkoutID)
+	if err != nil {
+		t.Fatalf("Failed to get workout: %v", err)
+	}
+	if newWorkout.UserID != workout.UserID {
+		t.Fatalf("Wrong workout WorkoutID: %d", newWorkout.UserID)
 	}
 }
 
@@ -205,4 +229,210 @@ func TestCreateSet_Postgres(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("Wrong number of workouts: %d", count)
 	}
+}
+
+// ----------------------------------
+// QUERY tests
+// ----------------------------------
+
+func TestSetFinishTime_Postgres(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+	workout := &domain.WorkoutModel{
+		UserID:    1,
+		StartedAt: time.Now().Add(-1 * time.Hour),
+	}
+
+	_, err := repo.CreateWorkout(context.Background(), workout)
+	if err != nil {
+		t.Fatalf("Failed to create workout: %v", err)
+	}
+
+	err = repo.SetWorkoutFinishTime(context.Background(), workout.WorkoutID, time.Now())
+
+	if err != nil {
+		t.Fatalf("Failed to set workout finish time: %v", err)
+	}
+
+}
+
+func TestSetFinishTimeAndGet_Postgres(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	workout := &domain.WorkoutModel{
+		UserID:    1,
+		StartedAt: time.Now(),
+	}
+
+	_, err := repo.CreateWorkout(context.Background(), workout)
+	if err != nil {
+		t.Fatalf("Failed to create workout: %v", err)
+	}
+
+	finishTime := time.Now().UTC().Round(time.Millisecond)
+
+	err = repo.SetWorkoutFinishTime(context.Background(), workout.WorkoutID, finishTime)
+
+	newWorkout, err := repo.GetWorkoutById(context.Background(), workout.WorkoutID)
+
+	if err != nil {
+		t.Fatalf("Failed to get workout: %v", err)
+	}
+
+	if newWorkout.UserID != workout.UserID {
+		t.Fatalf("Wrong workout WorkoutID: %d", newWorkout.UserID)
+	}
+
+	if !newWorkout.FinishedAt.Equal(finishTime) {
+		t.Fatalf("Wrong finish time: %s, %s", newWorkout.FinishedAt.String(), finishTime.String())
+	}
+}
+
+func TestGetLastTimeMax_Postgres(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+	workout := &domain.WorkoutModel{
+		UserID:    1,
+		StartedAt: time.Now().Add(-time.Hour),
+	}
+	workoutResult, err := repo.CreateWorkout(context.Background(), workout)
+
+	if err != nil {
+		t.Fatalf("Failed to create workout: %v", err)
+	}
+
+	set := &domain.SetModel{
+		WorkoutID:  workoutResult.WorkoutID,
+		ExerciseID: 0,
+		Reps:       1,
+		Difficulty: 2,
+		Weight:     100,
+		LoggedAt:   time.Now(),
+	}
+
+	_, err = repo.CreateSet(context.Background(), set)
+	if err != nil {
+		t.Fatalf("Failed to create set: %v", err)
+	}
+
+	err = repo.SetWorkoutFinishTime(context.Background(), workoutResult.WorkoutID, time.Now().Add(-10*time.Minute))
+	if err != nil {
+		t.Fatalf("Failed to set workout finish time: %v", err)
+	}
+
+	lastWeightSet, err := repo.GetLastTimeMaxSet(context.Background(), 1, 0)
+	if err != nil {
+		t.Fatalf("Failed to get last weight set: %v", err)
+	}
+
+	if lastWeightSet.Weight != 100 {
+		t.Fatalf("Wrong last weight: %v", lastWeightSet.Weight)
+	}
+
+}
+
+func TestGetLastTimeMaxComplex_Postgres(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	workout1 := &domain.WorkoutModel{
+		UserID:    1,
+		StartedAt: time.Now().UTC().Add(-10 * time.Hour),
+	}
+
+	workout2 := &domain.WorkoutModel{
+		UserID:    1,
+		StartedAt: time.Now().UTC().Add(-5 * time.Hour),
+	}
+
+	workout3 := &domain.WorkoutModel{
+		UserID:    1,
+		StartedAt: time.Now().UTC().Add(-2 * time.Hour),
+	}
+
+	workoutResult1, err := repo.CreateWorkout(context.Background(), workout1)
+	if err != nil {
+		t.Fatalf("Failed to create workout: %v", err)
+	}
+
+	err = repo.SetWorkoutFinishTime(context.Background(), workoutResult1.WorkoutID, time.Now().UTC().Add(time.Hour))
+	if err != nil {
+		t.Fatalf("Failed to set workout finish time: %v", err)
+	}
+
+	workoutResult2, err := repo.CreateWorkout(context.Background(), workout2)
+	if err != nil {
+		t.Fatalf("Failed to create workout: %v", err)
+	}
+	err = repo.SetWorkoutFinishTime(context.Background(), workoutResult2.WorkoutID, time.Now().UTC().Add(time.Hour))
+	if err != nil {
+		t.Fatalf("Failed to set workout finish time: %v", err)
+	}
+
+	workoutResult3, err := repo.CreateWorkout(context.Background(), workout3)
+	if err != nil {
+		t.Fatalf("Failed to create workout: %v", err)
+	}
+	err = repo.SetWorkoutFinishTime(context.Background(), workoutResult3.WorkoutID, time.Now().UTC().Add(time.Hour))
+	if err != nil {
+		t.Fatalf("Failed to set workout finish time: %v", err)
+	}
+
+	set1 := &domain.SetModel{
+		WorkoutID:  workoutResult1.WorkoutID,
+		ExerciseID: 0,
+		Reps:       5,
+		Difficulty: 2,
+		Weight:     100,
+		LoggedAt:   workout1.StartedAt.Add(10 * time.Minute),
+	}
+	_, err = repo.CreateSet(context.Background(), set1)
+	if err != nil {
+		t.Fatalf("Failed to create set: %v", err)
+	}
+
+	set2 := &domain.SetModel{
+		WorkoutID:  workoutResult2.WorkoutID,
+		ExerciseID: 0,
+		Reps:       15,
+		Difficulty: 2,
+		Weight:     110,
+		LoggedAt:   workoutResult2.StartedAt.Add(10 * time.Minute),
+	}
+	_, err = repo.CreateSet(context.Background(), set2)
+	if err != nil {
+		t.Fatalf("Failed to create set: %v", err)
+	}
+
+	set3 := &domain.SetModel{
+		WorkoutID:  workoutResult3.WorkoutID,
+		ExerciseID: 1,
+		Reps:       10,
+		Difficulty: 2,
+		Weight:     200,
+		LoggedAt:   workoutResult3.StartedAt.Add(10 * time.Minute),
+	}
+	_, err = repo.CreateSet(context.Background(), set3)
+	if err != nil {
+		t.Fatalf("Failed to create set: %v", err)
+	}
+
+	maxSet, err := repo.GetLastTimeMaxSet(context.Background(), 1, 0)
+	if err != nil {
+		t.Fatalf("Failed to get max set: %v", err)
+	}
+
+	if maxSet.Weight != 110 {
+		t.Fatalf("Wrong max weight: %v", maxSet.Weight)
+	}
+
 }
