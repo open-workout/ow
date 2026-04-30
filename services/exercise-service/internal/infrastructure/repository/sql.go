@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/lib/pq"
 	"github.com/open-workout/ow/services/exercise-service/internal/domain"
 )
 
@@ -33,7 +34,7 @@ func (r *SqlRepository) CreateExercise(ctx context.Context, exercise *domain.Exe
 		exercise.Name,
 		exercise.ExerciseType,
 		exercise.PrimaryMuscle,
-		exercise.SecondaryMuscles,
+		pq.Array(exercise.SecondaryMuscles),
 		exercise.Description,
 		exercise.UserID,
 		exercise.IsPrivate,
@@ -70,7 +71,7 @@ func (r *SqlRepository) UpdateExercise(ctx context.Context, exercise *domain.Exe
 		exercise.Name,
 		exercise.ExerciseType,
 		exercise.PrimaryMuscle,
-		exercise.SecondaryMuscles,
+		pq.Array(exercise.SecondaryMuscles),
 		exercise.Description,
 		exercise.ExerciseID,
 	).Scan(&exerciseId)

@@ -1,0 +1,31 @@
+name: API Gateway CI
+on:
+  push:
+    paths:
+      - "services/exercise-service/**"
+      - ".github/workflows/exercise-service-ci.yml"
+  pull_request:
+    paths:
+      - "services/exercise-service/**"
+      - ".github/workflows/exercise-service-ci.yml"
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.0"
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('services/exercise-service/go.sum') }}
+      - name: Install dependencies
+        working-directory: services/exercise-service
+        run: go mod download
+      - name: Run tests
+        working-directory: services/exercise-service
+        run: go test ./... -v
