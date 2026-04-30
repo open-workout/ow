@@ -1,6 +1,9 @@
 package domain
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 type ExerciseModel struct {
 	ExerciseID       int64    `json:"exercise_id"`
@@ -15,15 +18,23 @@ type ExerciseModel struct {
 
 type ExerciseMedia struct {
 	ExerciseID int64  `json:"exercise_id"`
+	UserID     int64  `json:"user_id"`
 	URL        string `json:"url"`
 }
 
 type ExerciseService interface {
 	CreateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
+	UpdateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
 	AddExerciseMedia(ctx context.Context, exerciseID int64, media *ExerciseMedia) error
 }
 
 type ExerciseRepository interface {
-	UpdateExercise(ctx context.Context, id int64, exerciseModel *ExerciseModel) error
+	UpdateExercise(ctx context.Context, id int64, exerciseModel *ExerciseModel) (*ExerciseModel, error)
 	CreateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
+
+	AddExerciseMedia(ctx context.Context, exerciseID int64, media *ExerciseMedia) error
+}
+
+type MediaStorage interface {
+	Upload(ctx context.Context, file io.Reader, filename string) (string, error)
 }

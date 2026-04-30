@@ -43,7 +43,7 @@ func (r *SqlRepository) CreateExercise(ctx context.Context, exercise *domain.Exe
 		return nil, err
 	}
 
-	exercise.ExerciseID = int(exerciseId)
+	exercise.ExerciseID = exerciseId
 
 	return exercise, nil
 
@@ -63,5 +63,41 @@ func (r *SqlRepository) UpdateExercise(ctx context.Context, exercise *domain.Exe
 	`
 
 	var exerciseId int64
+
+	err := r.db.QueryRowContext(
+		ctx,
+		query,
+		exercise.Name,
+		exercise.ExerciseType,
+		exercise.PrimaryMuscle,
+		exercise.SecondaryMuscles,
+		exercise.Description,
+		exercise.ExerciseID,
+	).Scan(&exerciseId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	exercise.ExerciseID = exerciseId
+	return exercise, nil
+
+}
+
+func (r *SqlRepository) AddExerciseMedia(ctx context.Context, exerciseID int64, media *domain.ExerciseMedia) error {
+
+	query := `
+		INSERT INTO exercise_media (exercise_id, url, user_id) 
+		VALUES ($1, $2, $3)
+	`
+
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		media.ExerciseID,
+		media.URL,
+		media.UserID,
+	)
+	return err
 
 }
