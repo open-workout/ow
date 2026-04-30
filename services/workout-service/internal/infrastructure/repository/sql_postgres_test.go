@@ -122,7 +122,7 @@ func TestCreateWorkout_Postgres(t *testing.T) {
 		t.Fatalf("Wrong number of workouts: %d", count)
 	}
 
-	var insertedUserID int
+	var insertedUserID int64
 	err = db.QueryRow("SELECT  user_id FROM workouts WHERE workout_id = $1", workout.WorkoutID).Scan(&insertedUserID)
 	if err != nil {
 		t.Fatalf("Failed to get workout: %v", err)
