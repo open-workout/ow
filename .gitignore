@@ -2,3 +2,5 @@
 .envrc
 bin/
 .idea/
+
+/apps/mobile/node_modules
