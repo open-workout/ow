@@ -1,12 +1,39 @@
 import "@/global.css"
-import { Text, View } from "react-native";
+
+import { View, StyleSheet, SafeAreaView, StatusBar } from "react-native";
+import { useState } from "react";
+import DashboardHeader from "./components/DashboardHeader";
+import SearchBar from "./components/SearchBar";
+import StartWorkoutCard from "./components/StartWorkoutCard";
+import RecentActivity from "./components/RecentActivity";
+import BottomMenu from "./components/BottomMenu";
+
+type TabName = 'home' | 'explore' | 'stats' | 'profile';
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState<TabName>('home');
+
   return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <Text className="text-xl font-bold text-blue-500">
-        Welcome to Nativewind!
-      </Text>
-    </View>
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="light-content" backgroundColor="#111113" />
+      <View style={styles.container}>
+        <DashboardHeader />
+        <SearchBar />
+        <StartWorkoutCard />
+        <RecentActivity />
+      </View>
+      <BottomMenu activeTab={activeTab} onTabPress={setActiveTab} />
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: '#111113',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#111113',
+  },
+});
