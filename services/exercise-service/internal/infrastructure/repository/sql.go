@@ -102,3 +102,103 @@ func (r *SqlRepository) AddExerciseMedia(ctx context.Context, exerciseID int64, 
 	return err
 
 }
+
+func (r *SqlRepository) ListPublicExercises(ctx context.Context) ([]domain.ExerciseModel, error) {
+
+	query := `
+		SELECT *
+		FROM exercises
+		WHERE is_private = false
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var exercises []domain.ExerciseModel
+
+	for rows.Next() {
+		var ex domain.ExerciseModel
+
+		if err := rows.Scan(
+			&ex.ExerciseID,
+			&ex.Name,
+			&ex.ExerciseType,
+			&ex.PrimaryMuscle,
+			pq.Array(&ex.SecondaryMuscles),
+			&ex.Description,
+			&ex.UserID,
+			&ex.IsPrivate,
+		); err != nil {
+			return nil, err
+		}
+
+		exercises = append(exercises, ex)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return exercises, nil
+}
+
+func (r *SqlRepository) ListUserExercises(ctx context.Context, userID int64) ([]domain.ExerciseModel, error) {
+
+	query := `
+		SELECT *
+		FROM exercises
+		WHERE is_private = true
+		  AND user_id = $1
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var exercises []domain.ExerciseModel
+
+	for rows.Next() {
+		var ex domain.ExerciseModel
+
+		if err := rows.Scan(
+			&ex.ExerciseID,
+			&ex.Name,
+			&ex.ExerciseType,
+			&ex.PrimaryMuscle,
+			pq.Array(&ex.SecondaryMuscles),
+			&ex.Description,
+			&ex.UserID,
+			&ex.IsPrivate,
+		); err != nil {
+			return nil, err
+		}
+
+		exercises = append(exercises, ex)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return exercises, nil
+}
+
+func (r *SqlRepository) ListExercises(ctx context.Context, userID int64) ([]domain.ExerciseModel, error) {
+	public, err := r.ListPublicExercises(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	private, err := r.ListUserExercises(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(public, private...), nil
+
+}

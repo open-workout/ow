@@ -22,10 +22,17 @@ type ExerciseMedia struct {
 	URL        string `json:"url"`
 }
 
+type MuscleState struct {
+	Muscles map[string]float64
+	UserID  int64
+}
+
 type ExerciseService interface {
 	CreateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
 	UpdateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
 	AddExerciseMedia(ctx context.Context, exerciseID int64, media *ExerciseMedia) error
+
+	GetBestExercise(ctx context.Context, state MuscleState) (*ExerciseModel, error)
 }
 
 type ExerciseRepository interface {
@@ -33,6 +40,10 @@ type ExerciseRepository interface {
 	CreateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
 
 	AddExerciseMedia(ctx context.Context, exerciseID int64, media *ExerciseMedia) error
+
+	ListExercises(ctx context.Context, userID int64) ([]ExerciseModel, error)
+	ListPublicExercises(ctx context.Context) ([]ExerciseModel, error)
+	ListUserExercises(ctx context.Context, userID int64) ([]ExerciseModel, error)
 }
 
 type MediaStorage interface {

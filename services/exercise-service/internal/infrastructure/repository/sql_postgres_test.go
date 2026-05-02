@@ -257,3 +257,6 @@ func TestSqlRepository_CreateExercise_Integration(t *testing.T) {
 		t.Errorf("expected valid ID, got 0")
 	}
 }
+
+//TODO: add tests for getting all user/public exercises.
+//TODO: add integration tests with test-containers
