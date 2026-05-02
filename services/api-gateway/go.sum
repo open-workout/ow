@@ -1,0 +1,4 @@
+github.com/go-chi/chi/v5 v5.2.5 h1:Eg4myHZBjyvJmAFjFvWgrqDTXFyOzjj7YIm3L3mu6Ug=
+github.com/go-chi/chi/v5 v5.2.5/go.mod h1:X7Gx4mteadT3eDOMTsXzmI4/rwUpOwBHLpAfupzFJP0=
+github.com/open-workout/ow v0.0.0-20260421144451-a58b0c657d1e h1:8uJYGgRUdDSCMz4opmEUVGd/AoWOXckqoHPst/3oTjE=
+github.com/open-workout/ow v0.0.0-20260421144451-a58b0c657d1e/go.mod h1:QfAPBSfUBtlXyTpKjh+VHBtSM8Z3gw2JVMeHHES6zEU=

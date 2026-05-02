@@ -2,3 +2,8 @@
 .envrc
 bin/
 .idea/
+
+/apps/mobile/node_modules
+/apps/mobile/.vscode
+/apps/mobile/.expo
+/apps/mobile/expo-env.d.ts
