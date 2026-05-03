@@ -29,14 +29,14 @@ type MuscleState struct {
 
 type ExerciseService interface {
 	CreateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
-	UpdateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
 	AddExerciseMedia(ctx context.Context, exerciseID int64, media *ExerciseMedia) error
 
-	GetBestExercise(ctx context.Context, state MuscleState) (*ExerciseModel, error)
+	GetTopExercises(ctx context.Context, state MuscleState, limit int64) ([]ExerciseModel, error)
+
+	ListExercises(ctx context.Context, userID int64) ([]ExerciseModel, error)
 }
 
 type ExerciseRepository interface {
-	UpdateExercise(ctx context.Context, id int64, exerciseModel *ExerciseModel) (*ExerciseModel, error)
 	CreateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
 
 	AddExerciseMedia(ctx context.Context, exerciseID int64, media *ExerciseMedia) error

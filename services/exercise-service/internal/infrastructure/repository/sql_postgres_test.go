@@ -4,153 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"regexp"
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/lib/pq"
 	"github.com/open-workout/ow/services/exercise-service/internal/domain"
 	"github.com/open-workout/ow/services/exercise-service/internal/infrastructure/repository"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
-
-func setupMockDB(t *testing.T) (*repository.SqlRepository, sqlmock.Sqlmock, *sql.DB) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create sqlmock: %v", err)
-	}
-
-	repo := repository.NewSqlRepository(db)
-	return repo, mock, db
-}
-
-func TestSqlRepository_CreateExercise(t *testing.T) {
-	repo, mock, db := setupMockDB(t)
-	defer db.Close()
-
-	ex := &domain.ExerciseModel{
-		Name:             "Push Up",
-		ExerciseType:     "compound",
-		PrimaryMuscle:    "chest",
-		SecondaryMuscles: []string{"triceps"},
-		Description:      "basic push exercise",
-		UserID:           1,
-		IsPrivate:        false,
-	}
-
-	mock.ExpectQuery(regexp.QuoteMeta(`
-	INSERT INTO exercises  (name, exercise_type, primary_muscle, secondary_muscles, description, user_id, is_private)
-	VALUES ($1, $2, $3, $4, $5, $6, $7)
-	RETURNING exercise_id
-	`)).
-		WithArgs(
-			ex.Name,
-			ex.ExerciseType,
-			ex.PrimaryMuscle,
-			pq.Array(ex.SecondaryMuscles),
-			ex.Description,
-			ex.UserID,
-			ex.IsPrivate,
-		).
-		WillReturnRows(sqlmock.NewRows([]string{"exercise_id"}).AddRow(42))
-
-	result, err := repo.CreateExercise(context.Background(), ex)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if result.ExerciseID != 42 {
-		t.Errorf("expected ID 42, got %d", result.ExerciseID)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unmet expectations: %v", err)
-	}
-}
-
-func TestSqlRepository_UpdateExercise(t *testing.T) {
-	repo, mock, db := setupMockDB(t)
-	defer db.Close()
-
-	ex := &domain.ExerciseModel{
-		ExerciseID:       10,
-		Name:             "Pull Up",
-		ExerciseType:     "compound",
-		PrimaryMuscle:    "back",
-		SecondaryMuscles: []string{"biceps"},
-		Description:      "pull movement",
-	}
-
-	mock.ExpectQuery(regexp.QuoteMeta(`
-	UPDATE exercises
-	SET
-		name = COALESCE(name, $1),
-		exercise_type = COALESCE(exercise_type, $2),
-		primary_muscle = COALESCE(primary_muscle, $3),
-		secondary_muscles = COALESCE(secondary_muscles, $4),
-		description = COALESCE(description, $5)
-	WHERE exercise_id = $6
-	RETURNING exercise_id
-	`)).
-		WithArgs(
-			ex.Name,
-			ex.ExerciseType,
-			ex.PrimaryMuscle,
-			pq.Array(ex.SecondaryMuscles),
-			ex.Description,
-			ex.ExerciseID,
-		).
-		WillReturnRows(sqlmock.NewRows([]string{"exercise_id"}).AddRow(10))
-
-	result, err := repo.UpdateExercise(context.Background(), ex)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if result.ExerciseID != 10 {
-		t.Errorf("expected ID 10, got %d", result.ExerciseID)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unmet expectations: %v", err)
-	}
-}
-
-func TestSqlRepository_AddExerciseMedia(t *testing.T) {
-	repo, mock, db := setupMockDB(t)
-	defer db.Close()
-
-	media := &domain.ExerciseMedia{
-		ExerciseID: 1,
-		URL:        "https://cdn.com/file.jpg",
-		UserID:     99,
-	}
-
-	mock.ExpectExec(regexp.QuoteMeta(`
-		INSERT INTO exercise_media (exercise_id, url, user_id) 
-		VALUES ($1, $2, $3)
-	`)).
-		WithArgs(
-			media.ExerciseID,
-			media.URL,
-			media.UserID,
-		).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-
-	err := repo.AddExerciseMedia(context.Background(), 1, media)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unmet expectations: %v", err)
-	}
-}
 
 func setupPostgres(t *testing.T) (*sql.DB, func()) {
 	ctx := context.Background()
@@ -230,6 +91,90 @@ func setupSchema(t *testing.T, db *sql.DB) {
 	}
 }
 
+func TestSqlRepository_CreateExercise(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+
+	setupSchema(t, db)
+
+	repo := repository.NewSqlRepository(db)
+
+	ex := &domain.ExerciseModel{
+		Name:             "Pull Up",
+		ExerciseType:     "compound",
+		PrimaryMuscle:    "back",
+		SecondaryMuscles: []string{"biceps"},
+		Description:      "pull movement",
+		UserID:           1,
+		IsPrivate:        false,
+	}
+
+	result, err := repo.CreateExercise(context.Background(), ex)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var name string
+	err = db.QueryRow(`SELECT name FROM exercises WHERE exercise_id = $1`, result.ExerciseID).
+		Scan(&name)
+
+	if err != nil {
+		t.Fatalf("failed to query db: %v", err)
+	}
+
+	if name != "Pull Up" {
+		t.Errorf("expected name Pull Up, got %s", name)
+	}
+}
+
+func TestSqlRepository_AddExerciseMedia(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	ex := &domain.ExerciseModel{
+		Name:             "Pull Up",
+		ExerciseType:     "compound",
+		PrimaryMuscle:    "back",
+		SecondaryMuscles: []string{"biceps"},
+		Description:      "pull movement",
+		UserID:           1,
+		IsPrivate:        false,
+	}
+
+	result, err := repo.CreateExercise(context.Background(), ex)
+
+	if err != nil {
+		t.Fatalf("failed to create exercise: %v", err)
+	}
+
+	media := &domain.ExerciseMedia{
+		ExerciseID: result.ExerciseID,
+		URL:        "http://image.com/squat.png",
+		UserID:     1,
+	}
+
+	err = repo.AddExerciseMedia(context.Background(), result.ExerciseID, media)
+	if err != nil {
+		t.Fatalf("failed to add media to exercise: %v", err)
+	}
+
+	var url string
+	err = db.QueryRow(`
+		SELECT url FROM exercise_media
+		WHERE exercise_id = $1`, result.ExerciseID,
+	).Scan(&url)
+	if err != nil {
+		t.Fatalf("failed to query exercise: %v", err)
+	}
+
+	if url != "http://image.com/squat.png" {
+		t.Errorf("expected url http://image.com/squat.png, got %s", url)
+	}
+
+}
+
 func TestSqlRepository_CreateExercise_Integration(t *testing.T) {
 	db, cleanup := setupPostgres(t)
 	defer cleanup()
@@ -258,5 +203,104 @@ func TestSqlRepository_CreateExercise_Integration(t *testing.T) {
 	}
 }
 
+func TestSqlRepository_GetUserExercises(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	ex1 := &domain.ExerciseModel{
+		Name:             "Push Up",
+		ExerciseType:     "compound",
+		PrimaryMuscle:    "chest",
+		SecondaryMuscles: []string{"triceps"},
+		Description:      "basic push movement",
+		UserID:           1,
+		IsPrivate:        true,
+	}
+	_, err := repo.CreateExercise(context.Background(), ex1)
+	if err != nil {
+		t.Fatalf("failed to create exercise ex1: %v", err)
+	}
+
+	ex2 := &domain.ExerciseModel{
+		Name:             "Bench Press",
+		ExerciseType:     "compound",
+		PrimaryMuscle:    "chest",
+		SecondaryMuscles: []string{"triceps", "shoulders"},
+		Description:      "basic push movement",
+		UserID:           2,
+		IsPrivate:        false,
+	}
+
+	_, err = repo.CreateExercise(context.Background(), ex2)
+	if err != nil {
+		t.Fatalf("failed to create exercise ex2: %v", err)
+	}
+
+	exercisesOfUser1, err := repo.ListUserExercises(context.Background(), ex1.UserID)
+	if err != nil {
+		t.Fatalf("failed to list exercises: %v", err)
+	}
+
+	if len(exercisesOfUser1) != 1 {
+		t.Errorf("expected 1 exercise of user1, got %d", len(exercisesOfUser1))
+	}
+
+	if exercisesOfUser1[0].ExerciseID != 1 {
+		t.Fatalf("expected exercise %v for user 1, but got %v", ex1.ExerciseID, exercisesOfUser1[0].ExerciseID)
+	}
+
+}
+
+func TestSqlRepository_GetPublicExercises(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+	ex1 := &domain.ExerciseModel{
+		Name:             "Push Up",
+		ExerciseType:     "compound",
+		PrimaryMuscle:    "chest",
+		SecondaryMuscles: []string{"triceps"},
+		Description:      "basic push movement",
+		UserID:           1,
+		IsPrivate:        true,
+	}
+
+	_, err := repo.CreateExercise(context.Background(), ex1)
+	if err != nil {
+		t.Fatalf("failed to create exercise ex1: %v", err)
+	}
+
+	ex2 := &domain.ExerciseModel{
+		Name:             "Bench Press",
+		ExerciseType:     "compound",
+		PrimaryMuscle:    "chest",
+		SecondaryMuscles: []string{"triceps", "shoulders"},
+		Description:      "basic push movement",
+		UserID:           1,
+		IsPrivate:        false,
+	}
+
+	_, err = repo.CreateExercise(context.Background(), ex2)
+	if err != nil {
+		t.Fatalf("failed to create exercise ex2: %v", err)
+	}
+
+	publicExercises, err := repo.ListPublicExercises(context.Background())
+	if err != nil {
+		t.Fatalf("failed to list public exercises: %v", err)
+	}
+
+	if len(publicExercises) != 1 {
+		t.Fatalf("expected 1 public exercises, got %d", len(publicExercises))
+	}
+
+	if publicExercises[0].ExerciseID != ex2.ExerciseID {
+		t.Fatalf("expected %v as public, got %d", ex2.ExerciseID, publicExercises[0].ExerciseID)
+	}
+
+}
+
 //TODO: add tests for getting all user/public exercises.
-//TODO: add integration tests with test-containers
