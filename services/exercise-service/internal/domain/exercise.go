@@ -20,6 +20,15 @@ type ExerciseMedia struct {
 	ExerciseID int64  `json:"exercise_id"`
 	UserID     int64  `json:"user_id"`
 	URL        string `json:"url"`
+	File       io.Reader
+}
+
+type ExerciseMediaUpload struct {
+	ExerciseID int64 `json:"exercise_id"`
+	UserID     int64 `json:"user_id"`
+	File       io.Reader
+	Filename   string `json:"filename"`
+	MimeType   string `json:"mime_type"`
 }
 
 type MuscleState struct {
@@ -29,7 +38,7 @@ type MuscleState struct {
 
 type ExerciseService interface {
 	CreateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
-	AddExerciseMedia(ctx context.Context, exerciseID int64, media *ExerciseMedia) error
+	AddExerciseMedia(ctx context.Context, exerciseID int64, media *ExerciseMedia, mediaFile *ExerciseMediaUpload) error
 
 	GetTopExercises(ctx context.Context, state MuscleState, limit int64) ([]ExerciseModel, error)
 
@@ -47,5 +56,5 @@ type ExerciseRepository interface {
 }
 
 type MediaStorage interface {
-	Upload(ctx context.Context, file io.Reader, filename string) (string, error)
+	Upload(ctx context.Context, file *ExerciseMediaUpload) (string, error)
 }

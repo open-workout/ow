@@ -23,14 +23,13 @@ func (s *Service) CreateExercise(ctx context.Context, exercise *domain.ExerciseM
 	return s.repo.CreateExercise(ctx, exercise)
 }
 
-func (s *Service) AddExerciseMedia(ctx context.Context, exerciseId int64, media *domain.ExerciseMedia) error {
+func (s *Service) AddExerciseMedia(ctx context.Context, exerciseId int64, media *domain.ExerciseMedia, file *domain.ExerciseMediaUpload) error {
 	err := s.repo.AddExerciseMedia(ctx, exerciseId, media)
 	if err != nil {
 		return err
 	}
 
-	//TODO: add logic for storing media on the server
-	// by calling mediaStorage.Upload(something)
+	s.mediaStorage.Upload(ctx, file)
 
 	return nil
 }
@@ -64,7 +63,6 @@ func (s *Service) GetTopExercises(
 	for _, exercise := range exercises {
 		score := scoreExercise(&exercise, state)
 
-		// optional: skip completely irrelevant ones
 		if score == 0 {
 			continue
 		}
@@ -75,7 +73,6 @@ func (s *Service) GetTopExercises(
 		})
 	}
 
-	// Sort descending by score
 	sort.Slice(scored, func(i, j int) bool {
 		return scored[i].score > scored[j].score
 	})
