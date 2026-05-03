@@ -29,7 +29,10 @@ func (s *Service) AddExerciseMedia(ctx context.Context, exerciseId int64, media 
 		return err
 	}
 
-	s.mediaStorage.Upload(ctx, file)
+	_, err = s.mediaStorage.Upload(ctx, file)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
