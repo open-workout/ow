@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -30,7 +31,12 @@ func (s *LocalMediaStorage) Upload(ctx context.Context, upload *domain.ExerciseM
 	if err != nil {
 		return "", fmt.Errorf("creating file: %w", err)
 	}
-	defer out.Close()
+	defer func(out *os.File) {
+		err := out.Close()
+		if err != nil {
+			log.Printf("error closing file: %v", err)
+		}
+	}(out)
 
 	if _, err := io.Copy(out, upload.File); err != nil {
 		return "", fmt.Errorf("writing file: %w", err)
