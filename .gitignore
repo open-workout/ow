@@ -7,3 +7,5 @@ bin/
 /apps/mobile/.vscode
 /apps/mobile/.expo
 /apps/mobile/expo-env.d.ts
+.aidesigner/*
+!.aidesigner/.gitkeep
