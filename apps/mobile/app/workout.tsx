@@ -6,27 +6,30 @@ import { useState } from 'react';
 
 type SetData = {
   id: number;
-  kg: string;
+  exerciseId: number;
+  weight: string;
+  unit: 'kg' | 'lbs';
   reps: string;
-  done: boolean;
+  difficulty: number | null;
+  loggedAt: Date | null;
 };
 
 const initialSets: SetData[] = [
-  { id: 1, kg: '60', reps: '10', done: true },
-  { id: 2, kg: '80', reps: '', done: false },
-  { id: 3, kg: '', reps: '', done: false },
+  { id: 1, exerciseId: 1, weight: '60', unit: 'kg', reps: '10', difficulty: null, loggedAt: new Date() },
+  { id: 2, exerciseId: 1, weight: '80', unit: 'kg', reps: '', difficulty: null, loggedAt: null },
+  { id: 3, exerciseId: 1, weight: '', unit: 'kg', reps: '', difficulty: null, loggedAt: null },
 ];
 
 export default function WorkoutScreen() {
   const router = useRouter();
   const [sets, setSets] = useState<SetData[]>(initialSets);
 
-  const toggleDone = (id: number) => {
-    setSets((prev) => prev.map((s) => s.id === id ? { ...s, done: !s.done } : s));
+  const logSet = (id: number) => {
+    setSets((prev) => prev.map((s) => s.id === id ? { ...s, loggedAt: s.loggedAt ? null : new Date() } : s));
   };
 
   const addSet = () => {
-    setSets((prev) => [...prev, { id: prev.length + 1, kg: '', reps: '', done: false }]);
+    setSets((prev) => [...prev, { id: prev.length + 1, exerciseId: 1, weight: '', unit: 'kg', reps: '', difficulty: null, loggedAt: null }]);
   };
 
   return (
@@ -81,7 +84,7 @@ export default function WorkoutScreen() {
             </View>
 
             {sets.map((set, i) => (
-              <SetRow key={set.id} set={set} index={i} onToggle={() => toggleDone(set.id)} />
+              <SetRow key={set.id} set={set} index={i} onToggle={() => logSet(set.id)} />
             ))}
 
             <TouchableOpacity
@@ -106,17 +109,18 @@ export default function WorkoutScreen() {
 }
 
 function SetRow({ set, index, onToggle }: { set: SetData; index: number; onToggle: () => void }) {
-  const bg = set.done ? 'rgba(16,185,129,0.06)' : index % 2 === 0 ? 'rgba(39,39,42,0.15)' : 'transparent';
+  const logged = set.loggedAt !== null;
+  const bg = logged ? 'rgba(16,185,129,0.06)' : index % 2 === 0 ? 'rgba(39,39,42,0.15)' : 'transparent';
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 8, backgroundColor: bg, borderTopWidth: 1, borderTopColor: 'rgba(39,39,42,0.5)', position: 'relative' }}>
-      {set.done && (
+      {logged && (
         <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, backgroundColor: '#10b981' }} />
       )}
       <Text style={{ flex: 1, textAlign: 'center', color: '#71717a', fontSize: 14, fontWeight: '500' }}>{set.id}</Text>
       <View style={{ flex: 1 }}>
         <TextInput
-          defaultValue={set.kg}
+          defaultValue={set.weight}
           placeholder="—"
           placeholderTextColor="#3f3f46"
           keyboardType="numeric"
@@ -141,15 +145,15 @@ function SetRow({ set, index, onToggle }: { set: SetData; index: number; onToggl
             borderRadius: 8,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: set.done ? '#10b981' : '#27272a',
+            backgroundColor: logged ? '#10b981' : '#27272a',
             borderWidth: 1,
-            borderColor: set.done ? '#34d399' : '#3f3f46',
-            shadowColor: set.done ? '#10b981' : 'transparent',
-            shadowOpacity: set.done ? 0.3 : 0,
+            borderColor: logged ? '#34d399' : '#3f3f46',
+            shadowColor: logged ? '#10b981' : 'transparent',
+            shadowOpacity: logged ? 0.3 : 0,
             shadowRadius: 8,
           }}
         >
-          <Ionicons name="checkmark" size={16} color={set.done ? '#0a0a0a' : '#52525b'} />
+          <Ionicons name="checkmark" size={16} color={logged ? '#0a0a0a' : '#52525b'} />
         </TouchableOpacity>
       </View>
     </View>
