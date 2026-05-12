@@ -16,22 +16,28 @@ import (
 type Router struct {
 	cfg *config.Config
 
-	healthHandler  *handlers.HealthHandler
-	workoutHandler *handlers.WorkoutHandler
+	healthHandler   *handlers.HealthHandler
+	workoutHandler  *handlers.WorkoutHandler
+	userHandler     *handlers.UserHandler
+	exerciseHandler *handlers.ExerciseHandler
 }
 
 func NewRouter(
 	cfg *config.Config,
 	healthHandler *handlers.HealthHandler,
 	workoutHandler *handlers.WorkoutHandler,
+	userHandler *handlers.UserHandler,
+	exerciseHandler *handlers.ExerciseHandler,
 ) http.Handler {
 
 	r := chi.NewRouter()
 
 	router := &Router{
-		cfg:            cfg,
-		healthHandler:  healthHandler,
-		workoutHandler: workoutHandler,
+		cfg:             cfg,
+		healthHandler:   healthHandler,
+		workoutHandler:  workoutHandler,
+		userHandler:     userHandler,
+		exerciseHandler: exerciseHandler,
 	}
 
 	router.register(r)
@@ -58,5 +64,24 @@ func (rt *Router) register(r chi.Router) {
 	// Health
 	// =====================
 	r.Get("/health", rt.healthHandler.Check)
+
+	// =====================
+	// Users
+	// =====================
+	r.Route("/users", func(r chi.Router) {
+		r.Use(appmw.Auth(rt.cfg.JWTSecret))
+		r.Get("/{id}", rt.userHandler.GetUser)
+	})
+
+	// =====================
+	// Exercises
+	// =====================
+	r.Route("/exercises", func(r chi.Router) {
+		r.Use(appmw.Auth(rt.cfg.JWTSecret))
+		r.Get("/", rt.exerciseHandler.ListExercises)
+		r.Post("/", rt.exerciseHandler.CreateExercise)
+		r.Post("/recommendations", rt.exerciseHandler.GetTopExercises)
+		r.Post("/{id}/media", rt.exerciseHandler.AddExerciseMedia)
+	})
 
 }

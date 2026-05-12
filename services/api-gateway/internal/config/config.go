@@ -16,8 +16,10 @@ type Config struct {
 	JWTSecret string
 	JWTIssuer string
 
-	//Services (gRPC targets)
-	WorkoutServiceURL string
+	//Services
+	UserServiceURL     string
+	ExerciseServiceURL string
+	WorkoutServiceURL  string
 
 	//Observability
 	LogLevel string
@@ -39,8 +41,10 @@ func Load() *Config {
 		JWTSecret: env.GetString("JWT_SECRET", "dev-secret-change-me"),
 		JWTIssuer: env.GetString("JWT_ISSUER", "open-workout"),
 
-		// Services (gRPC)
-		WorkoutServiceURL: env.GetString("WORKOUT_SERVICE_URL", "localhost:50051"),
+		// Services
+		UserServiceURL:     env.GetString("USER_SERVICE_URL", "http://localhost:8081"),
+		ExerciseServiceURL: env.GetString("EXERCISE_SERVICE_URL", "http://localhost:8083"),
+		WorkoutServiceURL:  env.GetString("WORKOUT_SERVICE_URL", "http://localhost:8082"),
 
 		// Observability
 		LogLevel: env.GetString("LOG_LEVEL", "info"),

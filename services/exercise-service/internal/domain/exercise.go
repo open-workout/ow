@@ -41,7 +41,7 @@ type ExerciseService interface {
 	CreateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
 	AddExerciseMedia(ctx context.Context, exerciseID int64, media *ExerciseMedia, mediaFile *ExerciseMediaUpload) error
 
-	GetTopExercises(ctx context.Context, state MuscleState, limit int64) ([]ExerciseModel, error)
+	GetTopExercises(ctx context.Context, state MuscleState, limit int) ([]ExerciseModel, error)
 
 	ListExercises(ctx context.Context, userID int64) ([]ExerciseModel, error)
 }
