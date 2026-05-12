@@ -21,8 +21,8 @@ func NewSqlRepository(db *sql.DB) *SqlRepository {
 func (r *SqlRepository) CreateExercise(ctx context.Context, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
 
 	query := `
-	INSERT INTO exercises  (name, exercise_type, primary_muscle, secondary_muscles, description, user_id, is_private)
-	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	INSERT INTO exercises  (name, exercise_type, primary_muscle, secondary_muscles, description, user_id, is_private, weight_direction)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	RETURNING exercise_id
 `
 
@@ -38,6 +38,7 @@ func (r *SqlRepository) CreateExercise(ctx context.Context, exercise *domain.Exe
 		exercise.Description,
 		exercise.UserID,
 		exercise.IsPrivate,
+		exercise.WeightDirection,
 	).Scan(&exerciseId)
 
 	if err != nil {
@@ -96,6 +97,7 @@ func (r *SqlRepository) ListPublicExercises(ctx context.Context) ([]domain.Exerc
 			&ex.Description,
 			&ex.UserID,
 			&ex.IsPrivate,
+			&ex.WeightDirection,
 		); err != nil {
 			return nil, err
 		}
@@ -139,6 +141,7 @@ func (r *SqlRepository) ListUserExercises(ctx context.Context, userID int64) ([]
 			&ex.Description,
 			&ex.UserID,
 			&ex.IsPrivate,
+			&ex.WeightDirection,
 		); err != nil {
 			return nil, err
 		}

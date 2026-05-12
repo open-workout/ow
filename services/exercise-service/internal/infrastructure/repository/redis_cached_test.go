@@ -32,6 +32,7 @@ func TestListPublicExercises_CacheHit(t *testing.T) {
 			Description:      "Exercise1",
 			UserID:           1,
 			IsPrivate:        false,
+			WeightDirection:  1,
 		},
 		{
 			ExerciseID:       2,
@@ -42,6 +43,7 @@ func TestListPublicExercises_CacheHit(t *testing.T) {
 			Description:      "Exercise2",
 			UserID:           1,
 			IsPrivate:        false,
+			WeightDirection:  1,
 		},
 	}
 
@@ -97,6 +99,7 @@ func TestListPublicExercises_CacheMiss(t *testing.T) {
 				SecondaryMuscles: []string{"abs"},
 				Description:      "Exercise1",
 				UserID:           1,
+				WeightDirection:  1,
 			}
 			ex2 := domain.ExerciseModel{
 				ExerciseID:       2,
@@ -106,6 +109,7 @@ func TestListPublicExercises_CacheMiss(t *testing.T) {
 				SecondaryMuscles: []string{"abs"},
 				Description:      "Exercise2",
 				UserID:           1,
+				WeightDirection:  1,
 			}
 			return []domain.ExerciseModel{ex1, ex2}, nil
 		},
