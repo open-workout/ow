@@ -75,7 +75,8 @@ func setupSchema(t *testing.T, db *sql.DB) {
 		secondary_muscles TEXT[],
 		description TEXT,
 		user_id BIGINT,
-		is_private BOOLEAN
+		is_private BOOLEAN,
+		weight_direction BIGINT
 	);
 
 	CREATE TABLE exercise_media (
@@ -107,6 +108,7 @@ func TestSqlRepository_CreateExercise(t *testing.T) {
 		Description:      "pull movement",
 		UserID:           1,
 		IsPrivate:        false,
+		WeightDirection:  1,
 	}
 
 	result, err := repo.CreateExercise(context.Background(), ex)
@@ -141,6 +143,7 @@ func TestSqlRepository_AddExerciseMedia(t *testing.T) {
 		Description:      "pull movement",
 		UserID:           1,
 		IsPrivate:        false,
+		WeightDirection:  1,
 	}
 
 	result, err := repo.CreateExercise(context.Background(), ex)
@@ -191,6 +194,7 @@ func TestSqlRepository_CreateExercise_Integration(t *testing.T) {
 		Description:      "basic push movement",
 		UserID:           1,
 		IsPrivate:        false,
+		WeightDirection:  1,
 	}
 
 	result, err := repo.CreateExercise(context.Background(), ex)
@@ -217,6 +221,7 @@ func TestSqlRepository_GetUserExercises(t *testing.T) {
 		Description:      "basic push movement",
 		UserID:           1,
 		IsPrivate:        true,
+		WeightDirection:  1,
 	}
 	_, err := repo.CreateExercise(context.Background(), ex1)
 	if err != nil {
@@ -231,6 +236,7 @@ func TestSqlRepository_GetUserExercises(t *testing.T) {
 		Description:      "basic push movement",
 		UserID:           2,
 		IsPrivate:        false,
+		WeightDirection:  1,
 	}
 
 	_, err = repo.CreateExercise(context.Background(), ex2)
@@ -281,6 +287,7 @@ func TestSqlRepository_GetPublicExercises(t *testing.T) {
 		Description:      "basic push movement",
 		UserID:           1,
 		IsPrivate:        false,
+		WeightDirection:  1,
 	}
 
 	_, err = repo.CreateExercise(context.Background(), ex2)
@@ -302,5 +309,3 @@ func TestSqlRepository_GetPublicExercises(t *testing.T) {
 	}
 
 }
-
-//TODO: add tests for getting all user/public exercises.

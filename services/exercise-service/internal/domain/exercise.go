@@ -14,6 +14,7 @@ type ExerciseModel struct {
 	Description      string   `json:"description"`
 	UserID           int64    `json:"user_id"`
 	IsPrivate        bool     `json:"is_private"`
+	WeightDirection  int64    `json:"weight_direction"`
 }
 
 type ExerciseMedia struct {
