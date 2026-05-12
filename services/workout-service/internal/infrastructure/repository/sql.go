@@ -42,8 +42,8 @@ func (r *SqlRepository) CreateWorkout(ctx context.Context, workout *domain.Worko
 func (r *SqlRepository) CreateSet(ctx context.Context, set *domain.SetModel) (*domain.SetModel, error) {
 
 	query := `
-		INSERT INTO workout_sets (workout_id, exercise_id, reps, difficulty, weight, logged_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO workout_sets (workout_id, exercise_id, reps, difficulty, weight, unit, logged_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
 	loggedAt := time.Now()
@@ -56,6 +56,7 @@ func (r *SqlRepository) CreateSet(ctx context.Context, set *domain.SetModel) (*d
 		set.Reps,
 		set.Difficulty,
 		set.Weight,
+		set.Unit,
 		loggedAt,
 	)
 
@@ -93,7 +94,7 @@ func (r *SqlRepository) GetLastTimeMaxSet(ctx context.Context, userId int64, exe
 		ORDER BY w.finished_at DESC
 		LIMIT 1
 	)
-	SELECT s.workout_id, s.exercise_id, s.reps, s.difficulty, s.weight, s.logged_at
+	SELECT s.workout_id, s.exercise_id, s.reps, s.difficulty, s.weight, s.unit, s.logged_at
 	FROM workout_sets s
 	JOIN latest_workout lw ON lw.workout_id = s.workout_id
 	WHERE s.exercise_id = $2
@@ -109,6 +110,7 @@ func (r *SqlRepository) GetLastTimeMaxSet(ctx context.Context, userId int64, exe
 		&set.Reps,
 		&set.Difficulty,
 		&set.Weight,
+		&set.Unit,
 		&set.LoggedAt,
 	)
 
@@ -124,16 +126,18 @@ func (r *SqlRepository) GetLastTimeMaxSet(ctx context.Context, userId int64, exe
 
 func (r *SqlRepository) GetWorkoutById(ctx context.Context, workoutId int64) (*domain.WorkoutModel, error) {
 	query := `
-	SELECT * FROM workouts WHERE workout_id = $1
+	SELECT workout_id, user_id, started_at, finished_at, title FROM workouts WHERE workout_id = $1
 	`
 
 	workoutModel := &domain.WorkoutModel{}
 	var finishedAt sql.NullTime
+	var wTitle sql.NullString
 	err := r.db.QueryRowContext(ctx, query, workoutId).Scan(
 		&workoutModel.WorkoutID,
 		&workoutModel.UserID,
 		&workoutModel.StartedAt,
 		&finishedAt,
+		&wTitle,
 	)
 
 	if err != nil {
@@ -144,6 +148,12 @@ func (r *SqlRepository) GetWorkoutById(ctx context.Context, workoutId int64) (*d
 		workoutModel.FinishedAt = finishedAt.Time.UTC()
 	} else {
 		workoutModel.FinishedAt = time.Time{}
+	}
+
+	if wTitle.Valid {
+		workoutModel.Title = wTitle.String
+	} else {
+		workoutModel.Title = "Workout"
 	}
 
 	return workoutModel, nil

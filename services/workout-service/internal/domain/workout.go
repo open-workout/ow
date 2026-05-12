@@ -11,12 +11,14 @@ type SetModel struct {
 	Reps       int       `json:"reps"`
 	Difficulty int       `json:"difficulty"`
 	Weight     float64   `json:"weight"`
+	Unit       string    `json:"unit"`
 	LoggedAt   time.Time `json:"logged_at"`
 }
 
 type WorkoutModel struct {
 	WorkoutID  int64     `json:"workout_id"`
 	UserID     int64     `json:"user_id"`
+	Title      string    `json:"title,omitempty"`
 	StartedAt  time.Time `json:"started_at"`
 	FinishedAt time.Time `json:"finished_at,omitempty"`
 }
