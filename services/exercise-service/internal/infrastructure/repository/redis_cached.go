@@ -53,7 +53,7 @@ func (r *RedisCachedRepository) ListPublicExercises(ctx context.Context) ([]doma
 
 	data, err := json.Marshal(exercises)
 	if err == nil {
-		_ = r.redis.Set(ctx, cacheKey, data, time.Hour).Err()
+		_ = r.redis.Set(ctx, cacheKey, data, 10*time.Minute).Err()
 	}
 
 	return exercises, nil
