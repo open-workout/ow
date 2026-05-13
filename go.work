@@ -3,6 +3,7 @@ go 1.25.0
 use (
 	./services/api-gateway
 	./services/workout-service
+	./services/user-service
 	./shared/contracts
 	services/exercise-service
 )

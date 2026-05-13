@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/open-workout/ow/services/exercise-service/internal/infrastructure/repository"
 	"github.com/open-workout/ow/services/exercise-service/internal/infrastructure/storage"
 	"github.com/open-workout/ow/services/exercise-service/internal/service"
+	handlers "github.com/open-workout/ow/services/exercise-service/internal/transport/http/handlers"
 	"github.com/open-workout/ow/shared/env"
 	"github.com/redis/go-redis/v9"
 )
@@ -56,8 +59,21 @@ func main() {
 
 	svc := service.NewService(repo, mediaStorage)
 
-	_ = svc
+	h := handlers.NewExerciseHandler(svc)
 
-	log.Printf("exercise service initialised")
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /exercises", h.CreateExercise)
+	mux.HandleFunc("GET /exercises", h.ListExercises)
+	mux.HandleFunc("POST /exercises/recommendations", h.GetTopExercises)
+	mux.HandleFunc("POST /exercises/{id}/media", h.AddExerciseMedia)
+
+	port := env.GetInt("PORT", 8083)
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: mux,
+	}
+
+	log.Printf("exercise-service listening on :%d", port)
+	log.Fatal(srv.ListenAndServe())
 
 }
