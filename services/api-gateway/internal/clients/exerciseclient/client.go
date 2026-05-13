@@ -124,6 +124,33 @@ func (c *Client) GetTopExercises(ctx context.Context, req TopExercisesRequest) (
 	return exercises, nil
 }
 
+func (c *Client) GetExerciseById(ctx context.Context, id int64) (*Exercise, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		fmt.Sprintf("%s/exercises/%d", c.baseURL, id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("exercise not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("exercise-service returned %d", resp.StatusCode)
+	}
+
+	var ex Exercise
+	if err := json.NewDecoder(resp.Body).Decode(&ex); err != nil {
+		return nil, err
+	}
+	return &ex, nil
+}
+
 func (c *Client) AddExerciseMedia(ctx context.Context, exerciseID, userID int64, filename, mimeType string, file io.Reader) error {
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)

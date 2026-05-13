@@ -81,6 +81,7 @@ func (rt *Router) register(r chi.Router) {
 		r.Get("/", rt.exerciseHandler.ListExercises)
 		r.Post("/", rt.exerciseHandler.CreateExercise)
 		r.Post("/recommendations", rt.exerciseHandler.GetTopExercises)
+		r.Get("/{id}", rt.exerciseHandler.GetExerciseById)
 		r.Post("/{id}/media", rt.exerciseHandler.AddExerciseMedia)
 	})
 

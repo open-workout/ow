@@ -15,6 +15,11 @@ type MockRepository struct {
 	ListExercisesFunc       func(ctx context.Context, userID int64) ([]domain.ExerciseModel, error)
 	ListPublicExercisesFunc func(ctx context.Context) ([]domain.ExerciseModel, error)
 	ListUserExercisesFunc   func(ctx context.Context, userID int64) ([]domain.ExerciseModel, error)
+
+	GetExerciseByIdFunc func(ctx context.Context, id int64) (*domain.ExerciseModel, error)
+
+	UpdateExerciseFunc func(ctx context.Context, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error)
+	DeleteExerciseFunc func(ctx context.Context, id int64) error
 }
 
 func NewMockRepository() *MockRepository {
@@ -46,4 +51,19 @@ func (m *MockRepository) ListUserExercises(ctx context.Context, userID int64) ([
 func (m *MockRepository) ListExercises(ctx context.Context, userID int64) ([]domain.ExerciseModel, error) {
 	m.Called = true
 	return m.ListExercisesFunc(ctx, userID)
+}
+
+func (m *MockRepository) GetExerciseById(ctx context.Context, id int64) (*domain.ExerciseModel, error) {
+	m.Called = true
+	return m.GetExerciseByIdFunc(ctx, id)
+}
+
+func (m *MockRepository) UpdateExercise(ctx context.Context, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
+	m.Called = true
+	return m.UpdateExerciseFunc(ctx, exercise)
+}
+
+func (m *MockRepository) DeleteExercise(ctx context.Context, id int64) error {
+	m.Called = true
+	return m.DeleteExerciseFunc(ctx, id)
 }

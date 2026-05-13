@@ -170,3 +170,85 @@ func (r *SqlRepository) ListExercises(ctx context.Context, userID int64) ([]doma
 	return append(public, private...), nil
 
 }
+
+func (r *SqlRepository) UpdateExercise(ctx context.Context, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
+	query := `
+		UPDATE exercises
+		SET name = $1, exercise_type = $2, primary_muscle = $3, secondary_muscles = $4,
+		    description = $5, is_private = $6, weight_direction = $7
+		WHERE exercise_id = $8
+		RETURNING exercise_id, name, exercise_type, primary_muscle, secondary_muscles, description, user_id, is_private, weight_direction
+	`
+
+	var ex domain.ExerciseModel
+	err := r.db.QueryRowContext(ctx, query,
+		exercise.Name,
+		exercise.ExerciseType,
+		exercise.PrimaryMuscle,
+		pq.Array(exercise.SecondaryMuscles),
+		exercise.Description,
+		exercise.IsPrivate,
+		exercise.WeightDirection,
+		exercise.ExerciseID,
+	).Scan(
+		&ex.ExerciseID,
+		&ex.Name,
+		&ex.ExerciseType,
+		&ex.PrimaryMuscle,
+		pq.Array(&ex.SecondaryMuscles),
+		&ex.Description,
+		&ex.UserID,
+		&ex.IsPrivate,
+		&ex.WeightDirection,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ex, nil
+}
+
+func (r *SqlRepository) DeleteExercise(ctx context.Context, id int64) error {
+	query := `DELETE FROM exercises WHERE exercise_id = $1`
+
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+func (r *SqlRepository) GetExerciseById(ctx context.Context, id int64) (*domain.ExerciseModel, error) {
+	query := `
+		SELECT exercise_id, name, exercise_type, primary_muscle, secondary_muscles, description, user_id, is_private, weight_direction
+		FROM exercises
+		WHERE exercise_id = $1
+	`
+
+	var ex domain.ExerciseModel
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&ex.ExerciseID,
+		&ex.Name,
+		&ex.ExerciseType,
+		&ex.PrimaryMuscle,
+		pq.Array(&ex.SecondaryMuscles),
+		&ex.Description,
+		&ex.UserID,
+		&ex.IsPrivate,
+		&ex.WeightDirection,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ex, nil
+}

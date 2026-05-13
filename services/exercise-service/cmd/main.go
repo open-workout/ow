@@ -65,6 +65,9 @@ func main() {
 	mux.HandleFunc("POST /exercises", h.CreateExercise)
 	mux.HandleFunc("GET /exercises", h.ListExercises)
 	mux.HandleFunc("POST /exercises/recommendations", h.GetTopExercises)
+	mux.HandleFunc("GET /exercises/{id}", h.GetExerciseById)
+	mux.HandleFunc("PUT /exercises/{id}", h.UpdateExercise)
+	mux.HandleFunc("DELETE /exercises/{id}", h.DeleteExercise)
 	mux.HandleFunc("POST /exercises/{id}/media", h.AddExerciseMedia)
 
 	port := env.GetInt("PORT", 8083)

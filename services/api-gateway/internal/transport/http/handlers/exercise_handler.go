@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/open-workout/ow/services/api-gateway/internal/clients/exerciseclient"
+	appmw "github.com/open-workout/ow/services/api-gateway/internal/transport/http/middleware"
 )
 
 type ExerciseHandler struct {
@@ -68,6 +69,34 @@ func (h *ExerciseHandler) GetTopExercises(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(exercises)
+}
+
+func (h *ExerciseHandler) GetExerciseById(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid exercise id", http.StatusBadRequest)
+		return
+	}
+
+	callerUserID, err := strconv.ParseInt(appmw.GetUserID(r), 10, 64)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	ex, err := h.client.GetExerciseById(r.Context(), id)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	if ex.IsPrivate && ex.UserID != callerUserID {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ex)
 }
 
 func (h *ExerciseHandler) AddExerciseMedia(w http.ResponseWriter, r *http.Request) {

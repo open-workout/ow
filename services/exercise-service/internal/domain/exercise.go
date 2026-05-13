@@ -2,8 +2,11 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"io"
 )
+
+var ErrNotFound = errors.New("not found")
 
 type ExerciseModel struct {
 	ExerciseID       int64    `json:"exercise_id"`
@@ -44,6 +47,11 @@ type ExerciseService interface {
 	GetTopExercises(ctx context.Context, state MuscleState, limit int) ([]ExerciseModel, error)
 
 	ListExercises(ctx context.Context, userID int64) ([]ExerciseModel, error)
+
+	GetExerciseById(ctx context.Context, id int64) (*ExerciseModel, error)
+
+	UpdateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
+	DeleteExercise(ctx context.Context, id int64) error
 }
 
 type ExerciseRepository interface {
@@ -54,6 +62,11 @@ type ExerciseRepository interface {
 	ListExercises(ctx context.Context, userID int64) ([]ExerciseModel, error)
 	ListPublicExercises(ctx context.Context) ([]ExerciseModel, error)
 	ListUserExercises(ctx context.Context, userID int64) ([]ExerciseModel, error)
+
+	GetExerciseById(ctx context.Context, id int64) (*ExerciseModel, error)
+
+	UpdateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
+	DeleteExercise(ctx context.Context, id int64) error
 }
 
 type MediaStorage interface {
