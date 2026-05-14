@@ -81,7 +81,23 @@ func (rt *Router) register(r chi.Router) {
 		r.Get("/", rt.exerciseHandler.ListExercises)
 		r.Post("/", rt.exerciseHandler.CreateExercise)
 		r.Post("/recommendations", rt.exerciseHandler.GetTopExercises)
+		r.Get("/{id}", rt.exerciseHandler.GetExerciseById)
 		r.Post("/{id}/media", rt.exerciseHandler.AddExerciseMedia)
+	})
+
+	// =====================
+	// Workouts & Sets
+	// =====================
+	r.Route("/workouts", func(r chi.Router) {
+		r.Use(appmw.Auth(rt.cfg.JWTSecret))
+		r.Get("/{workout_id}", rt.workoutHandler.GetWorkout)
+		r.Get("/{workout_id}/sets", rt.workoutHandler.GetSets)
+	})
+
+	r.Route("/sets", func(r chi.Router) {
+		r.Use(appmw.Auth(rt.cfg.JWTSecret))
+		r.Put("/{set_id}", rt.workoutHandler.UpdateSet)
+		r.Delete("/{set_id}", rt.workoutHandler.DeleteSet)
 	})
 
 }

@@ -29,6 +29,27 @@ func TestAuth_ValidToken(t *testing.T) {
 	}
 }
 
+func TestAuth_AdminToken(t *testing.T) {
+	handler := mw.Auth("secret")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if mw.GetUserID(r) != "1" {
+			t.Errorf("got userID %s, want 1", mw.GetUserID(r))
+		}
+		if mw.GetUserRole(r) != "admin" {
+			t.Errorf("got role %s, want admin", mw.GetUserRole(r))
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer admin-token")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("got %d, want %d", rr.Code, http.StatusOK)
+	}
+}
+
 func TestAuth_MissingToken(t *testing.T) {
 
 	handler := mw.Auth("secret")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))

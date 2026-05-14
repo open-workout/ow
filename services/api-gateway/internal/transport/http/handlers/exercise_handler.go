@@ -70,6 +70,29 @@ func (h *ExerciseHandler) GetTopExercises(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(exercises)
 }
 
+func (h *ExerciseHandler) GetExerciseById(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid exercise id", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := effectiveUserID(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	ex, err := h.client.GetExerciseById(r.Context(), id, userID)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ex)
+}
+
 func (h *ExerciseHandler) AddExerciseMedia(w http.ResponseWriter, r *http.Request) {
 	exerciseID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {

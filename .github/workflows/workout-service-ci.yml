@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         working-directory: services/workout-service
         run: go mod download
+      - name: Build
+        working-directory: services/workout-service
+        run: go build ./...
       - name: Run tests
         working-directory: services/workout-service
         run: go test ./... -v

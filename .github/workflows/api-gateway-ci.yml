@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         working-directory: services/api-gateway
         run: go mod download
+      - name: Build
+        working-directory: services/api-gateway
+        run: go build ./...
       - name: Run tests
         working-directory: services/api-gateway
         run: go test ./... -v
