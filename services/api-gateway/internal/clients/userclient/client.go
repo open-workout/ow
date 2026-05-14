@@ -1,15 +1,33 @@
 package userclient
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 )
 
+var ErrNotFound = errors.New("not found")
+
+type SplitElement struct {
+	Muscles []string `json:"muscles"`
+	Title   string   `json:"title"`
+}
+
+type Split struct {
+	Elements []SplitElement `json:"elements"`
+}
+
 type User struct {
-	UserID int64 `json:"user_id"`
+	UserID        int64    `json:"user_id"`
+	Email         string   `json:"email"`
+	SportGoals    []string `json:"sport_goals"`
+	Gender        string   `json:"gender"`
+	Birthdate     string   `json:"birthdate"`
+	ExerciseSplit Split    `json:"split"`
 }
 
 type Client struct {
@@ -36,6 +54,9 @@ func (c *Client) GetUser(ctx context.Context, id int64) (*User, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrNotFound
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("user-service returned %d", resp.StatusCode)
 	}
@@ -46,4 +67,133 @@ func (c *Client) GetUser(ctx context.Context, id int64) (*User, error) {
 	}
 
 	return &user, nil
+}
+
+func (c *Client) CreateUser(ctx context.Context, user User) (*User, error) {
+	body, err := json.Marshal(user)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/users", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("user-service returned %d", resp.StatusCode)
+	}
+
+	var created User
+	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
+		return nil, err
+	}
+	return &created, nil
+}
+
+func (c *Client) UpdateUser(ctx context.Context, callerUserID, id int64, user User) (*User, error) {
+	body, err := json.Marshal(user)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut,
+		fmt.Sprintf("%s/users/%d", c.baseURL, id), bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-User-ID", fmt.Sprintf("%d", callerUserID))
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrNotFound
+	}
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, fmt.Errorf("forbidden")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("user-service returned %d", resp.StatusCode)
+	}
+
+	var updated User
+	if err := json.NewDecoder(resp.Body).Decode(&updated); err != nil {
+		return nil, err
+	}
+	return &updated, nil
+}
+
+func (c *Client) DeleteUser(ctx context.Context, callerUserID, id int64) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete,
+		fmt.Sprintf("%s/users/%d", c.baseURL, id), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("X-User-ID", fmt.Sprintf("%d", callerUserID))
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return ErrNotFound
+	}
+	if resp.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("forbidden")
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("user-service returned %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *Client) UpdateSplit(ctx context.Context, callerUserID, id int64, split Split) (*User, error) {
+	body, err := json.Marshal(split)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut,
+		fmt.Sprintf("%s/users/%d/split", c.baseURL, id), bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-User-ID", fmt.Sprintf("%d", callerUserID))
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrNotFound
+	}
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, fmt.Errorf("forbidden")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("user-service returned %d", resp.StatusCode)
+	}
+
+	var updated User
+	if err := json.NewDecoder(resp.Body).Decode(&updated); err != nil {
+		return nil, err
+	}
+	return &updated, nil
 }

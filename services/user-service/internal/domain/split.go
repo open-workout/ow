@@ -1,9 +1,10 @@
 package domain
 
 type SplitElement struct {
-	Days [][]string
+	Muscles []string `json:"muscles"`
+	Title   string   `json:"title"`
 }
 
 type Split struct {
-	Elements []SplitElement
+	Elements []SplitElement `json:"elements"`
 }
