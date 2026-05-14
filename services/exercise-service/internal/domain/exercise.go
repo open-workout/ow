@@ -7,6 +7,7 @@ import (
 )
 
 var ErrNotFound = errors.New("not found")
+var ErrForbidden = errors.New("forbidden")
 
 type ExerciseModel struct {
 	ExerciseID       int64    `json:"exercise_id"`
@@ -21,10 +22,10 @@ type ExerciseModel struct {
 }
 
 type ExerciseMedia struct {
-	ExerciseID int64  `json:"exercise_id"`
-	UserID     int64  `json:"user_id"`
-	URL        string `json:"url"`
-	File       io.Reader
+	ExerciseID int64     `json:"exercise_id"`
+	UserID     int64     `json:"user_id"`
+	URL        string    `json:"url"`
+	File       io.Reader `json:"-"`
 }
 
 type ExerciseMediaUpload struct {
@@ -42,7 +43,8 @@ type MuscleState struct {
 
 type ExerciseService interface {
 	CreateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
-	AddExerciseMedia(ctx context.Context, exerciseID int64, media *ExerciseMedia, mediaFile *ExerciseMediaUpload) error
+	AddExerciseMedia(ctx context.Context, exerciseID int64, callerUserID int64, media *ExerciseMedia, mediaFile *ExerciseMediaUpload) error
+	GetExerciseMedia(ctx context.Context, exerciseID int64, callerUserID int64) ([]ExerciseMedia, error)
 
 	GetTopExercises(ctx context.Context, state MuscleState, limit int) ([]ExerciseModel, error)
 
@@ -58,6 +60,7 @@ type ExerciseRepository interface {
 	CreateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
 
 	AddExerciseMedia(ctx context.Context, exerciseID int64, media *ExerciseMedia) error
+	GetExerciseMedia(ctx context.Context, exerciseID int64, callerUserID int64) ([]ExerciseMedia, error)
 
 	ListExercises(ctx context.Context, userID int64) ([]ExerciseModel, error)
 	ListPublicExercises(ctx context.Context) ([]ExerciseModel, error)

@@ -100,6 +100,12 @@ func (h *ExerciseHandler) AddExerciseMedia(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	userID, err := effectiveUserID(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		http.Error(w, "failed to parse form", http.StatusBadRequest)
 		return
@@ -112,12 +118,6 @@ func (h *ExerciseHandler) AddExerciseMedia(w http.ResponseWriter, r *http.Reques
 	}
 	defer file.Close()
 
-	userID, err := strconv.ParseInt(r.FormValue("user_id"), 10, 64)
-	if err != nil {
-		http.Error(w, "invalid user_id", http.StatusBadRequest)
-		return
-	}
-
 	if err := h.client.AddExerciseMedia(r.Context(), exerciseID, userID,
 		header.Filename, header.Header.Get("Content-Type"), io.Reader(file)); err != nil {
 		http.Error(w, "failed to add media", http.StatusBadGateway)
@@ -125,4 +125,27 @@ func (h *ExerciseHandler) AddExerciseMedia(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ExerciseHandler) GetExerciseMedia(w http.ResponseWriter, r *http.Request) {
+	exerciseID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid exercise id", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := effectiveUserID(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	media, err := h.client.GetExerciseMedia(r.Context(), exerciseID, userID)
+	if err != nil {
+		http.Error(w, "failed to get media", http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(media)
 }

@@ -528,6 +528,103 @@ func TestSqlRepository_GetExerciseById_NotFound(t *testing.T) {
 	}
 }
 
+func TestSqlRepository_GetExerciseMedia_ReturnsMedia(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	ex, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Pull Up", UserID: 1, IsPrivate: false,
+	})
+
+	_ = repo.AddExerciseMedia(context.Background(), ex.ExerciseID, &domain.ExerciseMedia{
+		ExerciseID: ex.ExerciseID, URL: "http://example.com/1.jpg", UserID: 1,
+	})
+	_ = repo.AddExerciseMedia(context.Background(), ex.ExerciseID, &domain.ExerciseMedia{
+		ExerciseID: ex.ExerciseID, URL: "http://example.com/2.png", UserID: 1,
+	})
+
+	media, err := repo.GetExerciseMedia(context.Background(), ex.ExerciseID, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(media) != 2 {
+		t.Errorf("expected 2 media items, got %d", len(media))
+	}
+	for _, m := range media {
+		if m.URL == "" {
+			t.Error("expected non-empty URL")
+		}
+	}
+}
+
+func TestSqlRepository_GetExerciseMedia_PrivateExercise_Owner(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	ex, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Secret Move", UserID: 1, IsPrivate: true,
+	})
+	_ = repo.AddExerciseMedia(context.Background(), ex.ExerciseID, &domain.ExerciseMedia{
+		ExerciseID: ex.ExerciseID, URL: "http://example.com/secret.jpg", UserID: 1,
+	})
+
+	media, err := repo.GetExerciseMedia(context.Background(), ex.ExerciseID, 1)
+	if err != nil {
+		t.Fatalf("owner should see their private exercise media: %v", err)
+	}
+	if len(media) != 1 {
+		t.Errorf("expected 1 media item, got %d", len(media))
+	}
+}
+
+func TestSqlRepository_GetExerciseMedia_PrivateExercise_WrongUser(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	ex, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Secret Move", UserID: 1, IsPrivate: true,
+	})
+	_ = repo.AddExerciseMedia(context.Background(), ex.ExerciseID, &domain.ExerciseMedia{
+		ExerciseID: ex.ExerciseID, URL: "http://example.com/secret.jpg", UserID: 1,
+	})
+
+	media, err := repo.GetExerciseMedia(context.Background(), ex.ExerciseID, 99)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(media) != 0 {
+		t.Errorf("expected 0 media items for wrong user on private exercise, got %d", len(media))
+	}
+}
+
+func TestSqlRepository_GetExerciseMedia_AdminBypass(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	ex, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Secret Move", UserID: 1, IsPrivate: true,
+	})
+	_ = repo.AddExerciseMedia(context.Background(), ex.ExerciseID, &domain.ExerciseMedia{
+		ExerciseID: ex.ExerciseID, URL: "http://example.com/secret.jpg", UserID: 1,
+	})
+
+	media, err := repo.GetExerciseMedia(context.Background(), ex.ExerciseID, 0)
+	if err != nil {
+		t.Fatalf("admin should see private exercise media: %v", err)
+	}
+	if len(media) != 1 {
+		t.Errorf("expected 1 media item for admin, got %d", len(media))
+	}
+}
+
 func TestSqlRepository_GetPublicExercises(t *testing.T) {
 	db, cleanup := setupPostgres(t)
 	defer cleanup()

@@ -69,6 +69,7 @@ func main() {
 	mux.HandleFunc("PUT /exercises/{id}", h.UpdateExercise)
 	mux.HandleFunc("DELETE /exercises/{id}", h.DeleteExercise)
 	mux.HandleFunc("POST /exercises/{id}/media", h.AddExerciseMedia)
+	mux.HandleFunc("GET /exercises/{id}/media", h.GetExerciseMedia)
 
 	port := env.GetInt("PORT", 8083)
 	srv := &http.Server{

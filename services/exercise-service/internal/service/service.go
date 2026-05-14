@@ -23,18 +23,26 @@ func (s *Service) CreateExercise(ctx context.Context, exercise *domain.ExerciseM
 	return s.repo.CreateExercise(ctx, exercise)
 }
 
-func (s *Service) AddExerciseMedia(ctx context.Context, exerciseId int64, media *domain.ExerciseMedia, file *domain.ExerciseMediaUpload) error {
-	err := s.repo.AddExerciseMedia(ctx, exerciseId, media)
+func (s *Service) AddExerciseMedia(ctx context.Context, exerciseID int64, callerUserID int64, media *domain.ExerciseMedia, file *domain.ExerciseMediaUpload) error {
+	ex, err := s.repo.GetExerciseById(ctx, exerciseID, callerUserID)
+	if err != nil {
+		return err
+	}
+	if callerUserID != 0 && ex.UserID != callerUserID {
+		return domain.ErrForbidden
+	}
+
+	url, err := s.mediaStorage.Upload(ctx, file)
 	if err != nil {
 		return err
 	}
 
-	_, err = s.mediaStorage.Upload(ctx, file)
-	if err != nil {
-		return err
-	}
+	media.URL = url
+	return s.repo.AddExerciseMedia(ctx, exerciseID, media)
+}
 
-	return nil
+func (s *Service) GetExerciseMedia(ctx context.Context, exerciseID int64, callerUserID int64) ([]domain.ExerciseMedia, error) {
+	return s.repo.GetExerciseMedia(ctx, exerciseID, callerUserID)
 }
 
 func (s *Service) ListExercises(ctx context.Context, userID int64) ([]domain.ExerciseModel, error) {

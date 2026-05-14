@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"time"
 )
 
@@ -156,14 +157,16 @@ func (c *Client) AddExerciseMedia(ctx context.Context, exerciseID, userID int64,
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 
-	fw, err := mw.CreateFormFile("file", filename)
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename=%q`, filename))
+	h.Set("Content-Type", mimeType)
+	fw, err := mw.CreatePart(h)
 	if err != nil {
 		return err
 	}
 	if _, err := io.Copy(fw, file); err != nil {
 		return err
 	}
-	mw.WriteField("user_id", fmt.Sprintf("%d", userID))
 	mw.Close()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
@@ -172,6 +175,7 @@ func (c *Client) AddExerciseMedia(ctx context.Context, exerciseID, userID int64,
 		return err
 	}
 	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("X-User-ID", fmt.Sprintf("%d", userID))
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -183,4 +187,35 @@ func (c *Client) AddExerciseMedia(ctx context.Context, exerciseID, userID int64,
 		return fmt.Errorf("exercise-service returned %d", resp.StatusCode)
 	}
 	return nil
+}
+
+type ExerciseMedia struct {
+	ExerciseID int64  `json:"exercise_id"`
+	UserID     int64  `json:"user_id"`
+	URL        string `json:"url"`
+}
+
+func (c *Client) GetExerciseMedia(ctx context.Context, exerciseID, callerUserID int64) ([]ExerciseMedia, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		fmt.Sprintf("%s/exercises/%d/media", c.baseURL, exerciseID), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-User-ID", fmt.Sprintf("%d", callerUserID))
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("exercise-service returned %d", resp.StatusCode)
+	}
+
+	var media []ExerciseMedia
+	if err := json.NewDecoder(resp.Body).Decode(&media); err != nil {
+		return nil, err
+	}
+	return media, nil
 }
