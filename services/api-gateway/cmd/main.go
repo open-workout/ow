@@ -7,6 +7,7 @@ import (
 
 	"github.com/open-workout/ow/services/api-gateway/internal/clients/exerciseclient"
 	"github.com/open-workout/ow/services/api-gateway/internal/clients/userclient"
+	"github.com/open-workout/ow/services/api-gateway/internal/clients/workoutclient"
 	"github.com/open-workout/ow/services/api-gateway/internal/config"
 	transport "github.com/open-workout/ow/services/api-gateway/internal/transport/http"
 	"github.com/open-workout/ow/services/api-gateway/internal/transport/http/handlers"
@@ -17,11 +18,12 @@ func main() {
 
 	userClient := userclient.New(cfg.UserServiceURL)
 	exerciseClient := exerciseclient.New(cfg.ExerciseServiceURL)
+	workoutClient := workoutclient.New(cfg.WorkoutServiceURL)
 
 	healthHandler := handlers.NewHealthHandler()
 	userHandler := handlers.NewUserHandler(userClient)
 	exerciseHandler := handlers.NewExerciseHandler(exerciseClient)
-	workoutHandler := &handlers.WorkoutHandler{}
+	workoutHandler := handlers.NewWorkoutHandler(workoutClient)
 
 	h := transport.NewRouter(cfg, healthHandler, workoutHandler, userHandler, exerciseHandler)
 

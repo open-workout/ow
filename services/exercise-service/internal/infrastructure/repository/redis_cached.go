@@ -64,7 +64,13 @@ func (r *RedisCachedRepository) ListUserExercises(ctx context.Context, userID in
 	return r.repo.ListUserExercises(ctx, userID)
 }
 
-func (r *RedisCachedRepository) GetExerciseById(ctx context.Context, id int64) (*domain.ExerciseModel, error) {
+func (r *RedisCachedRepository) GetExerciseById(ctx context.Context, id int64, callerUserID int64) (*domain.ExerciseModel, error) {
+	// Only cache when callerUserID == 0 (admin/unrestricted). For regular callers
+	// the result depends on ownership (private visibility), so always hit the DB.
+	if callerUserID != 0 {
+		return r.repo.GetExerciseById(ctx, id, callerUserID)
+	}
+
 	cacheKey := fmt.Sprintf("exercise:%d", id)
 
 	cached, err := r.redis.Get(ctx, cacheKey).Result()
@@ -80,7 +86,7 @@ func (r *RedisCachedRepository) GetExerciseById(ctx context.Context, id int64) (
 		return nil, err
 	}
 
-	ex, err := r.repo.GetExerciseById(ctx, id)
+	ex, err := r.repo.GetExerciseById(ctx, id, callerUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +99,8 @@ func (r *RedisCachedRepository) GetExerciseById(ctx context.Context, id int64) (
 	return ex, nil
 }
 
-func (r *RedisCachedRepository) UpdateExercise(ctx context.Context, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
-	updated, err := r.repo.UpdateExercise(ctx, exercise)
+func (r *RedisCachedRepository) UpdateExercise(ctx context.Context, callerUserID int64, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
+	updated, err := r.repo.UpdateExercise(ctx, callerUserID, exercise)
 	if err != nil {
 		return nil, err
 	}
@@ -108,8 +114,8 @@ func (r *RedisCachedRepository) UpdateExercise(ctx context.Context, exercise *do
 	return updated, nil
 }
 
-func (r *RedisCachedRepository) DeleteExercise(ctx context.Context, id int64) error {
-	if err := r.repo.DeleteExercise(ctx, id); err != nil {
+func (r *RedisCachedRepository) DeleteExercise(ctx context.Context, callerUserID int64, id int64) error {
+	if err := r.repo.DeleteExercise(ctx, callerUserID, id); err != nil {
 		return err
 	}
 

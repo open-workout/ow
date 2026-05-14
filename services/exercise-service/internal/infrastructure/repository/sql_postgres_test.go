@@ -282,7 +282,7 @@ func TestSqlRepository_UpdateExercise(t *testing.T) {
 	created.Name = "Chin Up"
 	created.IsPrivate = true
 
-	updated, err := repo.UpdateExercise(context.Background(), created)
+	updated, err := repo.UpdateExercise(context.Background(), 1, created)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -304,9 +304,54 @@ func TestSqlRepository_UpdateExercise_NotFound(t *testing.T) {
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	_, err := repo.UpdateExercise(context.Background(), &domain.ExerciseModel{ExerciseID: 999, Name: "Ghost"})
+	_, err := repo.UpdateExercise(context.Background(), 1, &domain.ExerciseModel{ExerciseID: 999, Name: "Ghost"})
 	if err == nil {
 		t.Fatal("expected error for missing exercise, got nil")
+	}
+}
+
+func TestSqlRepository_UpdateExercise_WrongUser(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Pull Up", UserID: 1, IsPrivate: false,
+	})
+
+	_, err := repo.UpdateExercise(context.Background(), 99, &domain.ExerciseModel{
+		ExerciseID: created.ExerciseID, Name: "Hacked",
+	})
+	if err == nil {
+		t.Fatal("expected error when updating with wrong user, got nil")
+	}
+
+	var name string
+	db.QueryRow(`SELECT name FROM exercises WHERE exercise_id = $1`, created.ExerciseID).Scan(&name)
+	if name != "Pull Up" {
+		t.Errorf("exercise should be unchanged, got name=%s", name)
+	}
+}
+
+func TestSqlRepository_UpdateExercise_AdminBypass(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Pull Up", UserID: 1, IsPrivate: false,
+	})
+
+	updated, err := repo.UpdateExercise(context.Background(), 0, &domain.ExerciseModel{
+		ExerciseID: created.ExerciseID, Name: "Admin Updated",
+	})
+	if err != nil {
+		t.Fatalf("admin should be able to update any exercise: %v", err)
+	}
+	if updated.Name != "Admin Updated" {
+		t.Errorf("expected name 'Admin Updated', got %s", updated.Name)
 	}
 }
 
@@ -325,7 +370,7 @@ func TestSqlRepository_DeleteExercise(t *testing.T) {
 		t.Fatalf("failed to create exercise: %v", err)
 	}
 
-	if err := repo.DeleteExercise(context.Background(), created.ExerciseID); err != nil {
+	if err := repo.DeleteExercise(context.Background(), 1, created.ExerciseID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -345,44 +390,129 @@ func TestSqlRepository_DeleteExercise_NotFound(t *testing.T) {
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	err := repo.DeleteExercise(context.Background(), 999)
+	err := repo.DeleteExercise(context.Background(), 1, 999)
 	if err == nil {
 		t.Fatal("expected error for missing exercise, got nil")
 	}
 }
 
-func TestSqlRepository_GetExerciseById(t *testing.T) {
+func TestSqlRepository_DeleteExercise_WrongUser(t *testing.T) {
 	db, cleanup := setupPostgres(t)
 	defer cleanup()
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	ex := &domain.ExerciseModel{
-		Name:             "Deadlift",
-		ExerciseType:     "compound",
-		PrimaryMuscle:    "back",
-		SecondaryMuscles: []string{"hamstrings", "glutes"},
-		Description:      "hip hinge movement",
-		UserID:           1,
-		IsPrivate:        false,
-		WeightDirection:  1,
+	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Squat", UserID: 1, IsPrivate: false,
+	})
+
+	err := repo.DeleteExercise(context.Background(), 99, created.ExerciseID)
+	if err == nil {
+		t.Fatal("expected error when deleting with wrong user, got nil")
 	}
 
-	created, err := repo.CreateExercise(context.Background(), ex)
+	var count int
+	db.QueryRow(`SELECT COUNT(*) FROM exercises WHERE exercise_id = $1`, created.ExerciseID).Scan(&count)
+	if count != 1 {
+		t.Fatal("exercise should still exist after failed delete")
+	}
+}
+
+func TestSqlRepository_DeleteExercise_AdminBypass(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Squat", UserID: 1, IsPrivate: false,
+	})
+
+	if err := repo.DeleteExercise(context.Background(), 0, created.ExerciseID); err != nil {
+		t.Fatalf("admin should be able to delete any exercise: %v", err)
+	}
+
+	var count int
+	db.QueryRow(`SELECT COUNT(*) FROM exercises WHERE exercise_id = $1`, created.ExerciseID).Scan(&count)
+	if count != 0 {
+		t.Fatal("exercise should be deleted")
+	}
+}
+
+func TestSqlRepository_GetExerciseById_Public(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	created, err := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Deadlift", UserID: 1, IsPrivate: false,
+	})
 	if err != nil {
 		t.Fatalf("failed to create exercise: %v", err)
 	}
 
-	result, err := repo.GetExerciseById(context.Background(), created.ExerciseID)
+	// Any caller can fetch a public exercise.
+	result, err := repo.GetExerciseById(context.Background(), created.ExerciseID, 99)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
 	if result.ExerciseID != created.ExerciseID {
 		t.Errorf("expected ID %d, got %d", created.ExerciseID, result.ExerciseID)
 	}
-	if result.Name != "Deadlift" {
-		t.Errorf("expected name Deadlift, got %s", result.Name)
+}
+
+func TestSqlRepository_GetExerciseById_Private_Owner(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Secret Move", UserID: 1, IsPrivate: true,
+	})
+
+	result, err := repo.GetExerciseById(context.Background(), created.ExerciseID, 1)
+	if err != nil {
+		t.Fatalf("owner should be able to get their private exercise: %v", err)
+	}
+	if result.ExerciseID != created.ExerciseID {
+		t.Errorf("expected ID %d, got %d", created.ExerciseID, result.ExerciseID)
+	}
+}
+
+func TestSqlRepository_GetExerciseById_Private_WrongUser(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Secret Move", UserID: 1, IsPrivate: true,
+	})
+
+	_, err := repo.GetExerciseById(context.Background(), created.ExerciseID, 99)
+	if err == nil {
+		t.Fatal("expected error for private exercise accessed by wrong user, got nil")
+	}
+}
+
+func TestSqlRepository_GetExerciseById_Private_AdminBypass(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
+		Name: "Secret Move", UserID: 1, IsPrivate: true,
+	})
+
+	result, err := repo.GetExerciseById(context.Background(), created.ExerciseID, 0)
+	if err != nil {
+		t.Fatalf("admin (userId=0) should bypass private check: %v", err)
+	}
+	if result.ExerciseID != created.ExerciseID {
+		t.Errorf("expected ID %d, got %d", created.ExerciseID, result.ExerciseID)
 	}
 }
 
@@ -392,7 +522,7 @@ func TestSqlRepository_GetExerciseById_NotFound(t *testing.T) {
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	_, err := repo.GetExerciseById(context.Background(), 999)
+	_, err := repo.GetExerciseById(context.Background(), 999, 1)
 	if err == nil {
 		t.Fatal("expected error for missing exercise, got nil")
 	}

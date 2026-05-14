@@ -39,8 +39,16 @@ func (s *Service) CreateSet(ctx context.Context, workoutSet *domain.SetModel) (*
 	return s.repo.CreateSet(ctx, workoutSet)
 }
 
-func (s *Service) DeleteSet(ctx context.Context, workoutId int64, exerciseId int64) error {
-	return s.repo.DeleteSet(ctx, workoutId, exerciseId)
+func (s *Service) UpdateSet(ctx context.Context, userId int64, set *domain.SetModel) (*domain.SetModel, error) {
+	return s.repo.UpdateSet(ctx, userId, set)
+}
+
+func (s *Service) DeleteSet(ctx context.Context, userId int64, setId int64) error {
+	return s.repo.DeleteSet(ctx, userId, setId)
+}
+
+func (s *Service) GetSetsByWorkoutID(ctx context.Context, workoutId int64, userId int64) ([]*domain.SetModel, error) {
+	return s.repo.GetSetsByWorkoutID(ctx, workoutId, userId)
 }
 
 func (s *Service) GetLastTimeMaxSet(ctx context.Context, userId int64, exerciseId int64) (*domain.SetModel, error) {

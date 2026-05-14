@@ -124,12 +124,13 @@ func (c *Client) GetTopExercises(ctx context.Context, req TopExercisesRequest) (
 	return exercises, nil
 }
 
-func (c *Client) GetExerciseById(ctx context.Context, id int64) (*Exercise, error) {
+func (c *Client) GetExerciseById(ctx context.Context, id int64, callerUserID int64) (*Exercise, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		fmt.Sprintf("%s/exercises/%d", c.baseURL, id), nil)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("X-User-ID", fmt.Sprintf("%d", callerUserID))
 
 	resp, err := c.http.Do(req)
 	if err != nil {

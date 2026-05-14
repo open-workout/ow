@@ -48,10 +48,10 @@ type ExerciseService interface {
 
 	ListExercises(ctx context.Context, userID int64) ([]ExerciseModel, error)
 
-	GetExerciseById(ctx context.Context, id int64) (*ExerciseModel, error)
+	GetExerciseById(ctx context.Context, id int64, callerUserID int64) (*ExerciseModel, error)
 
-	UpdateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
-	DeleteExercise(ctx context.Context, id int64) error
+	UpdateExercise(ctx context.Context, callerUserID int64, exercise *ExerciseModel) (*ExerciseModel, error)
+	DeleteExercise(ctx context.Context, callerUserID int64, id int64) error
 }
 
 type ExerciseRepository interface {
@@ -63,10 +63,10 @@ type ExerciseRepository interface {
 	ListPublicExercises(ctx context.Context) ([]ExerciseModel, error)
 	ListUserExercises(ctx context.Context, userID int64) ([]ExerciseModel, error)
 
-	GetExerciseById(ctx context.Context, id int64) (*ExerciseModel, error)
+	GetExerciseById(ctx context.Context, id int64, callerUserID int64) (*ExerciseModel, error)
 
-	UpdateExercise(ctx context.Context, exercise *ExerciseModel) (*ExerciseModel, error)
-	DeleteExercise(ctx context.Context, id int64) error
+	UpdateExercise(ctx context.Context, callerUserID int64, exercise *ExerciseModel) (*ExerciseModel, error)
+	DeleteExercise(ctx context.Context, callerUserID int64, id int64) error
 }
 
 type MediaStorage interface {

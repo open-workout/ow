@@ -100,14 +100,14 @@ func TestUpdateExercise_UpdatesCache(t *testing.T) {
 	}
 
 	repo := &repository.MockRepository{
-		UpdateExerciseFunc: func(_ context.Context, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
+		UpdateExerciseFunc: func(_ context.Context, _ int64, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
 			return updated, nil
 		},
 	}
 
 	cache := repository.NewRedisCachedRepository(rdb, repo)
 
-	result, err := cache.UpdateExercise(context.Background(), &domain.ExerciseModel{ExerciseID: 5})
+	result, err := cache.UpdateExercise(context.Background(), 1, &domain.ExerciseModel{ExerciseID: 5})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,14 +140,14 @@ func TestDeleteExercise_InvalidatesCache(t *testing.T) {
 	}
 
 	repo := &repository.MockRepository{
-		DeleteExerciseFunc: func(_ context.Context, id int64) error {
+		DeleteExerciseFunc: func(_ context.Context, _ int64, id int64) error {
 			return nil
 		},
 	}
 
 	cache := repository.NewRedisCachedRepository(rdb, repo)
 
-	if err := cache.DeleteExercise(context.Background(), 3); err != nil {
+	if err := cache.DeleteExercise(context.Background(), 1, 3); err != nil {
 		t.Fatal(err)
 	}
 
@@ -185,7 +185,7 @@ func TestGetExerciseById_CacheHit(t *testing.T) {
 	mockRepo := repository.NewMockRepository()
 	cache := repository.NewRedisCachedRepository(rdb, mockRepo)
 
-	result, err := cache.GetExerciseById(context.Background(), 42)
+	result, err := cache.GetExerciseById(context.Background(), 42, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,14 +218,14 @@ func TestGetExerciseById_CacheMiss(t *testing.T) {
 	}
 
 	repo := &repository.MockRepository{
-		GetExerciseByIdFunc: func(_ context.Context, id int64) (*domain.ExerciseModel, error) {
+		GetExerciseByIdFunc: func(_ context.Context, id int64, _ int64) (*domain.ExerciseModel, error) {
 			return ex, nil
 		},
 	}
 
 	cache := repository.NewRedisCachedRepository(rdb, repo)
 
-	result, err := cache.GetExerciseById(context.Background(), 7)
+	result, err := cache.GetExerciseById(context.Background(), 7, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

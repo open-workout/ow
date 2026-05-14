@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/open-workout/ow/services/api-gateway/internal/clients/exerciseclient"
-	appmw "github.com/open-workout/ow/services/api-gateway/internal/transport/http/middleware"
 )
 
 type ExerciseHandler struct {
@@ -78,19 +77,14 @@ func (h *ExerciseHandler) GetExerciseById(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	callerUserID, err := strconv.ParseInt(appmw.GetUserID(r), 10, 64)
+	userID, err := effectiveUserID(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	ex, err := h.client.GetExerciseById(r.Context(), id)
+	ex, err := h.client.GetExerciseById(r.Context(), id, userID)
 	if err != nil {
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
-
-	if ex.IsPrivate && ex.UserID != callerUserID {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}

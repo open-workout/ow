@@ -84,7 +84,13 @@ func (h *ExerciseHandler) GetExerciseById(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	ex, err := h.svc.GetExerciseById(r.Context(), id)
+	callerUserID, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
+	if err != nil {
+		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+		return
+	}
+
+	ex, err := h.svc.GetExerciseById(r.Context(), id, callerUserID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "not found", http.StatusNotFound)
@@ -105,6 +111,12 @@ func (h *ExerciseHandler) UpdateExercise(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	callerUserID, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
+	if err != nil {
+		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+		return
+	}
+
 	var exercise domain.ExerciseModel
 	if err := json.NewDecoder(r.Body).Decode(&exercise); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -112,7 +124,7 @@ func (h *ExerciseHandler) UpdateExercise(w http.ResponseWriter, r *http.Request)
 	}
 	exercise.ExerciseID = id
 
-	updated, err := h.svc.UpdateExercise(r.Context(), &exercise)
+	updated, err := h.svc.UpdateExercise(r.Context(), callerUserID, &exercise)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "not found", http.StatusNotFound)
@@ -133,7 +145,13 @@ func (h *ExerciseHandler) DeleteExercise(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.svc.DeleteExercise(r.Context(), id); err != nil {
+	callerUserID, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
+	if err != nil {
+		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+		return
+	}
+
+	if err := h.svc.DeleteExercise(r.Context(), callerUserID, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "not found", http.StatusNotFound)
 			return

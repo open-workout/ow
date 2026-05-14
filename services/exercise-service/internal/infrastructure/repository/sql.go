@@ -171,12 +171,13 @@ func (r *SqlRepository) ListExercises(ctx context.Context, userID int64) ([]doma
 
 }
 
-func (r *SqlRepository) UpdateExercise(ctx context.Context, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
+func (r *SqlRepository) UpdateExercise(ctx context.Context, callerUserID int64, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
 	query := `
 		UPDATE exercises
 		SET name = $1, exercise_type = $2, primary_muscle = $3, secondary_muscles = $4,
 		    description = $5, is_private = $6, weight_direction = $7
 		WHERE exercise_id = $8
+		  AND ($9 = 0 OR user_id = $9)
 		RETURNING exercise_id, name, exercise_type, primary_muscle, secondary_muscles, description, user_id, is_private, weight_direction
 	`
 
@@ -190,6 +191,7 @@ func (r *SqlRepository) UpdateExercise(ctx context.Context, exercise *domain.Exe
 		exercise.IsPrivate,
 		exercise.WeightDirection,
 		exercise.ExerciseID,
+		callerUserID,
 	).Scan(
 		&ex.ExerciseID,
 		&ex.Name,
@@ -208,10 +210,10 @@ func (r *SqlRepository) UpdateExercise(ctx context.Context, exercise *domain.Exe
 	return &ex, nil
 }
 
-func (r *SqlRepository) DeleteExercise(ctx context.Context, id int64) error {
-	query := `DELETE FROM exercises WHERE exercise_id = $1`
+func (r *SqlRepository) DeleteExercise(ctx context.Context, callerUserID int64, id int64) error {
+	query := `DELETE FROM exercises WHERE exercise_id = $1 AND ($2 = 0 OR user_id = $2)`
 
-	result, err := r.db.ExecContext(ctx, query, id)
+	result, err := r.db.ExecContext(ctx, query, id, callerUserID)
 	if err != nil {
 		return err
 	}
@@ -227,15 +229,16 @@ func (r *SqlRepository) DeleteExercise(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (r *SqlRepository) GetExerciseById(ctx context.Context, id int64) (*domain.ExerciseModel, error) {
+func (r *SqlRepository) GetExerciseById(ctx context.Context, id int64, callerUserID int64) (*domain.ExerciseModel, error) {
 	query := `
 		SELECT exercise_id, name, exercise_type, primary_muscle, secondary_muscles, description, user_id, is_private, weight_direction
 		FROM exercises
 		WHERE exercise_id = $1
+		  AND (is_private = false OR user_id = $2 OR $2 = 0)
 	`
 
 	var ex domain.ExerciseModel
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err := r.db.QueryRowContext(ctx, query, id, callerUserID).Scan(
 		&ex.ExerciseID,
 		&ex.Name,
 		&ex.ExerciseType,

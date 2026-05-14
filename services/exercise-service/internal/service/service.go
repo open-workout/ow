@@ -41,16 +41,16 @@ func (s *Service) ListExercises(ctx context.Context, userID int64) ([]domain.Exe
 	return s.repo.ListExercises(ctx, userID)
 }
 
-func (s *Service) GetExerciseById(ctx context.Context, id int64) (*domain.ExerciseModel, error) {
-	return s.repo.GetExerciseById(ctx, id)
+func (s *Service) GetExerciseById(ctx context.Context, id int64, callerUserID int64) (*domain.ExerciseModel, error) {
+	return s.repo.GetExerciseById(ctx, id, callerUserID)
 }
 
-func (s *Service) UpdateExercise(ctx context.Context, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
-	return s.repo.UpdateExercise(ctx, exercise)
+func (s *Service) UpdateExercise(ctx context.Context, callerUserID int64, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
+	return s.repo.UpdateExercise(ctx, callerUserID, exercise)
 }
 
-func (s *Service) DeleteExercise(ctx context.Context, id int64) error {
-	return s.repo.DeleteExercise(ctx, id)
+func (s *Service) DeleteExercise(ctx context.Context, callerUserID int64, id int64) error {
+	return s.repo.DeleteExercise(ctx, callerUserID, id)
 }
 
 func (s *Service) GetTopExercises(

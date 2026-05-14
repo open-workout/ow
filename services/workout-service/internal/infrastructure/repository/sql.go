@@ -44,11 +44,12 @@ func (r *SqlRepository) CreateSet(ctx context.Context, set *domain.SetModel) (*d
 	query := `
 		INSERT INTO workout_sets (workout_id, exercise_id, reps, difficulty, weight, unit, logged_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING set_id
 	`
 
 	loggedAt := time.Now()
 
-	_, err := r.db.ExecContext(
+	err := r.db.QueryRowContext(
 		ctx,
 		query,
 		set.WorkoutID,
@@ -58,7 +59,7 @@ func (r *SqlRepository) CreateSet(ctx context.Context, set *domain.SetModel) (*d
 		set.Weight,
 		set.Unit,
 		loggedAt,
-	)
+	).Scan(&set.SetID)
 
 	if err != nil {
 		return nil, err
@@ -78,6 +79,36 @@ func (r *SqlRepository) SetWorkoutFinishTime(ctx context.Context, workoutId int6
 		return err
 	}
 	return nil
+}
+
+func (r *SqlRepository) GetSetsByWorkoutID(ctx context.Context, workoutId int64, userId int64) ([]*domain.SetModel, error) {
+	query := `
+		SELECT ws.set_id, ws.workout_id, ws.exercise_id, ws.reps, ws.difficulty, ws.weight, ws.unit, ws.logged_at
+		FROM workout_sets ws
+		JOIN workouts w ON ws.workout_id = w.workout_id
+		WHERE ws.workout_id = $1
+		  AND ($2 = 0 OR w.user_id = $2)
+		ORDER BY ws.logged_at
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, workoutId, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sets []*domain.SetModel
+	for rows.Next() {
+		s := &domain.SetModel{}
+		if err := rows.Scan(&s.SetID, &s.WorkoutID, &s.ExerciseID, &s.Reps, &s.Difficulty, &s.Weight, &s.Unit, &s.LoggedAt); err != nil {
+			return nil, err
+		}
+		sets = append(sets, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return sets, nil
 }
 
 func (r *SqlRepository) GetLastTimeMaxSet(ctx context.Context, userId int64, exerciseId int64) (*domain.SetModel, error) {
@@ -156,9 +187,53 @@ func (r *SqlRepository) DeleteWorkoutsByUserID(ctx context.Context, userId int64
 	return tx.Commit()
 }
 
-func (r *SqlRepository) DeleteSet(ctx context.Context, workoutId int64, exerciseId int64) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM workout_sets WHERE workout_id = $1 AND exercise_id = $2`, workoutId, exerciseId)
-	return err
+func (r *SqlRepository) UpdateSet(ctx context.Context, userId int64, set *domain.SetModel) (*domain.SetModel, error) {
+	query := `
+		UPDATE workout_sets ws
+		SET reps = $1, difficulty = $2, weight = $3, unit = $4
+		FROM workouts w
+		WHERE ws.set_id = $5
+		  AND ws.workout_id = w.workout_id
+		  AND ($6 = 0 OR w.user_id = $6)
+		RETURNING ws.set_id, ws.workout_id, ws.exercise_id, ws.reps, ws.difficulty, ws.weight, ws.unit, ws.logged_at
+	`
+
+	updated := &domain.SetModel{}
+	err := r.db.QueryRowContext(ctx, query, set.Reps, set.Difficulty, set.Weight, set.Unit, set.SetID, userId).Scan(
+		&updated.SetID,
+		&updated.WorkoutID,
+		&updated.ExerciseID,
+		&updated.Reps,
+		&updated.Difficulty,
+		&updated.Weight,
+		&updated.Unit,
+		&updated.LoggedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+func (r *SqlRepository) DeleteSet(ctx context.Context, userId int64, setId int64) error {
+	result, err := r.db.ExecContext(ctx, `
+		DELETE FROM workout_sets ws
+		USING workouts w
+		WHERE ws.set_id = $1
+		  AND ws.workout_id = w.workout_id
+		  AND ($2 = 0 OR w.user_id = $2)
+	`, setId, userId)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (r *SqlRepository) GetWorkoutById(ctx context.Context, workoutId int64) (*domain.WorkoutModel, error) {

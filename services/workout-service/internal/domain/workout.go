@@ -6,6 +6,7 @@ import (
 )
 
 type SetModel struct {
+	SetID      int64     `json:"set_id"`
 	WorkoutID  int64     `json:"workout_id"`
 	ExerciseID int64     `json:"exercise_id"`
 	Reps       int       `json:"reps"`
@@ -31,7 +32,9 @@ type WorkoutRepository interface {
 	DeleteWorkoutsByUserID(ctx context.Context, userId int64) error
 
 	CreateSet(ctx context.Context, set *SetModel) (*SetModel, error)
-	DeleteSet(ctx context.Context, workoutId int64, exerciseId int64) error
+	UpdateSet(ctx context.Context, userId int64, set *SetModel) (*SetModel, error)
+	DeleteSet(ctx context.Context, userId int64, setId int64) error
+	GetSetsByWorkoutID(ctx context.Context, workoutId int64, userId int64) ([]*SetModel, error)
 
 	GetLastTimeMaxSet(ctx context.Context, userId int64, exerciseId int64) (*SetModel, error)
 }
@@ -44,7 +47,9 @@ type WorkoutService interface {
 	DeleteWorkoutsByUserID(ctx context.Context, userId int64) error
 
 	CreateSet(ctx context.Context, set *SetModel) (*SetModel, error)
-	DeleteSet(ctx context.Context, workoutId int64, exerciseId int64) error
+	UpdateSet(ctx context.Context, userId int64, set *SetModel) (*SetModel, error)
+	DeleteSet(ctx context.Context, userId int64, setId int64) error
+	GetSetsByWorkoutID(ctx context.Context, workoutId int64, userId int64) ([]*SetModel, error)
 
 	GetLastTimeMaxSet(ctx context.Context, userId int64, exerciseId int64) (*SetModel, error)
 }
