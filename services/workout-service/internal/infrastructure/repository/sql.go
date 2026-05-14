@@ -124,6 +124,43 @@ func (r *SqlRepository) GetLastTimeMaxSet(ctx context.Context, userId int64, exe
 	return &set, nil
 }
 
+func (r *SqlRepository) DeleteWorkout(ctx context.Context, workoutId int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err = tx.ExecContext(ctx, `DELETE FROM workout_sets WHERE workout_id = $1`, workoutId); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM workouts WHERE workout_id = $1`, workoutId); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *SqlRepository) DeleteWorkoutsByUserID(ctx context.Context, userId int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err = tx.ExecContext(ctx, `DELETE FROM workout_sets WHERE workout_id IN (SELECT workout_id FROM workouts WHERE user_id = $1)`, userId); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM workouts WHERE user_id = $1`, userId); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *SqlRepository) DeleteSet(ctx context.Context, workoutId int64, exerciseId int64) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM workout_sets WHERE workout_id = $1 AND exercise_id = $2`, workoutId, exerciseId)
+	return err
+}
+
 func (r *SqlRepository) GetWorkoutById(ctx context.Context, workoutId int64) (*domain.WorkoutModel, error) {
 	query := `
 	SELECT workout_id, user_id, started_at, finished_at, title FROM workouts WHERE workout_id = $1

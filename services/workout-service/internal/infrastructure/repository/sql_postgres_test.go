@@ -340,6 +340,149 @@ func TestGetLastTimeMax_Postgres(t *testing.T) {
 
 }
 
+// ----------------------------------
+// DELETE tests
+// ----------------------------------
+
+func TestDeleteWorkout_Postgres(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	workout := &domain.WorkoutModel{UserID: 1, StartedAt: time.Now()}
+	result, err := repo.CreateWorkout(context.Background(), workout)
+	if err != nil {
+		t.Fatalf("Failed to create workout: %v", err)
+	}
+
+	_, err = repo.CreateSet(context.Background(), &domain.SetModel{WorkoutID: result.WorkoutID, ExerciseID: 1, Reps: 5, Weight: 50})
+	if err != nil {
+		t.Fatalf("Failed to create set: %v", err)
+	}
+	_, err = repo.CreateSet(context.Background(), &domain.SetModel{WorkoutID: result.WorkoutID, ExerciseID: 2, Reps: 5, Weight: 60})
+	if err != nil {
+		t.Fatalf("Failed to create set: %v", err)
+	}
+
+	if err := repo.DeleteWorkout(context.Background(), result.WorkoutID); err != nil {
+		t.Fatalf("Failed to delete workout: %v", err)
+	}
+
+	var workoutCount int
+	db.QueryRow("SELECT COUNT(*) FROM workouts WHERE workout_id = $1", result.WorkoutID).Scan(&workoutCount)
+	if workoutCount != 0 {
+		t.Fatalf("Expected workout to be deleted, got count: %d", workoutCount)
+	}
+
+	var setCount int
+	db.QueryRow("SELECT COUNT(*) FROM workout_sets WHERE workout_id = $1", result.WorkoutID).Scan(&setCount)
+	if setCount != 0 {
+		t.Fatalf("Expected sets to be deleted with workout, got count: %d", setCount)
+	}
+}
+
+func TestDeleteWorkout_DoesNotAffectOtherWorkouts_Postgres(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	w1, _ := repo.CreateWorkout(context.Background(), &domain.WorkoutModel{UserID: 1, StartedAt: time.Now()})
+	w2, _ := repo.CreateWorkout(context.Background(), &domain.WorkoutModel{UserID: 1, StartedAt: time.Now()})
+
+	repo.CreateSet(context.Background(), &domain.SetModel{WorkoutID: w1.WorkoutID, ExerciseID: 1, Reps: 5})
+	repo.CreateSet(context.Background(), &domain.SetModel{WorkoutID: w2.WorkoutID, ExerciseID: 1, Reps: 5})
+
+	if err := repo.DeleteWorkout(context.Background(), w1.WorkoutID); err != nil {
+		t.Fatalf("Failed to delete workout: %v", err)
+	}
+
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM workouts").Scan(&count)
+	if count != 1 {
+		t.Fatalf("Expected 1 remaining workout, got: %d", count)
+	}
+
+	var setCount int
+	db.QueryRow("SELECT COUNT(*) FROM workout_sets").Scan(&setCount)
+	if setCount != 1 {
+		t.Fatalf("Expected 1 remaining set, got: %d", setCount)
+	}
+}
+
+func TestDeleteSet_Postgres(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	workout, _ := repo.CreateWorkout(context.Background(), &domain.WorkoutModel{UserID: 1, StartedAt: time.Now()})
+
+	repo.CreateSet(context.Background(), &domain.SetModel{WorkoutID: workout.WorkoutID, ExerciseID: 1, Reps: 5, Weight: 50})
+	repo.CreateSet(context.Background(), &domain.SetModel{WorkoutID: workout.WorkoutID, ExerciseID: 1, Reps: 8, Weight: 60})
+	repo.CreateSet(context.Background(), &domain.SetModel{WorkoutID: workout.WorkoutID, ExerciseID: 2, Reps: 10, Weight: 40})
+
+	if err := repo.DeleteSet(context.Background(), workout.WorkoutID, 1); err != nil {
+		t.Fatalf("Failed to delete set: %v", err)
+	}
+
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM workout_sets WHERE workout_id = $1 AND exercise_id = 1", workout.WorkoutID).Scan(&count)
+	if count != 0 {
+		t.Fatalf("Expected sets for exercise 1 to be deleted, got: %d", count)
+	}
+
+	var remainingCount int
+	db.QueryRow("SELECT COUNT(*) FROM workout_sets WHERE workout_id = $1 AND exercise_id = 2", workout.WorkoutID).Scan(&remainingCount)
+	if remainingCount != 1 {
+		t.Fatalf("Expected sets for exercise 2 to remain, got: %d", remainingCount)
+	}
+}
+
+func TestDeleteWorkoutsByUserID_Postgres(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	w1, _ := repo.CreateWorkout(context.Background(), &domain.WorkoutModel{UserID: 1, StartedAt: time.Now()})
+	w2, _ := repo.CreateWorkout(context.Background(), &domain.WorkoutModel{UserID: 1, StartedAt: time.Now()})
+	w3, _ := repo.CreateWorkout(context.Background(), &domain.WorkoutModel{UserID: 2, StartedAt: time.Now()})
+
+	repo.CreateSet(context.Background(), &domain.SetModel{WorkoutID: w1.WorkoutID, ExerciseID: 1, Reps: 5})
+	repo.CreateSet(context.Background(), &domain.SetModel{WorkoutID: w2.WorkoutID, ExerciseID: 1, Reps: 5})
+	repo.CreateSet(context.Background(), &domain.SetModel{WorkoutID: w3.WorkoutID, ExerciseID: 1, Reps: 5})
+
+	if err := repo.DeleteWorkoutsByUserID(context.Background(), 1); err != nil {
+		t.Fatalf("Failed to delete workouts by user: %v", err)
+	}
+
+	var workoutCount int
+	db.QueryRow("SELECT COUNT(*) FROM workouts WHERE user_id = 1").Scan(&workoutCount)
+	if workoutCount != 0 {
+		t.Fatalf("Expected all user 1 workouts deleted, got: %d", workoutCount)
+	}
+
+	var setCount int
+	db.QueryRow("SELECT COUNT(*) FROM workout_sets WHERE workout_id IN ($1, $2)", w1.WorkoutID, w2.WorkoutID).Scan(&setCount)
+	if setCount != 0 {
+		t.Fatalf("Expected sets for user 1 workouts deleted, got: %d", setCount)
+	}
+
+	var otherWorkoutCount int
+	db.QueryRow("SELECT COUNT(*) FROM workouts WHERE user_id = 2").Scan(&otherWorkoutCount)
+	if otherWorkoutCount != 1 {
+		t.Fatalf("Expected user 2 workout to remain, got: %d", otherWorkoutCount)
+	}
+
+	var otherSetCount int
+	db.QueryRow("SELECT COUNT(*) FROM workout_sets WHERE workout_id = $1", w3.WorkoutID).Scan(&otherSetCount)
+	if otherSetCount != 1 {
+		t.Fatalf("Expected user 2 sets to remain, got: %d", otherSetCount)
+	}
+}
+
 func TestGetLastTimeMaxComplex_Postgres(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	t.Cleanup(cleanup)
