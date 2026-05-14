@@ -71,7 +71,7 @@ func main() {
 	mux.HandleFunc("POST /exercises/{id}/media", h.AddExerciseMedia)
 	mux.HandleFunc("GET /exercises/{id}/media", h.GetExerciseMedia)
 
-	port := env.GetInt("PORT", 8083)
+	port := env.GetInt("EXERCISE_SERVICE_PORT", 8083)
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: mux,
