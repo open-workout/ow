@@ -68,9 +68,13 @@ func (rt *Router) register(r chi.Router) {
 	// =====================
 	// Users
 	// =====================
+	r.Post("/users", rt.userHandler.CreateUser)
 	r.Route("/users", func(r chi.Router) {
 		r.Use(appmw.Auth(rt.cfg.JWTSecret))
 		r.Get("/{id}", rt.userHandler.GetUser)
+		r.Put("/{id}", rt.userHandler.UpdateUser)
+		r.Delete("/{id}", rt.userHandler.DeleteUser)
+		r.Put("/{id}/split", rt.userHandler.UpdateSplit)
 	})
 
 	// =====================
