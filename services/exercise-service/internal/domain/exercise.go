@@ -22,10 +22,10 @@ type ExerciseModel struct {
 }
 
 type ExerciseMedia struct {
-	ExerciseID int64  `json:"exercise_id"`
-	UserID     int64  `json:"user_id"`
-	URL        string `json:"url"`
-	File       io.Reader
+	ExerciseID int64     `json:"exercise_id"`
+	UserID     int64     `json:"user_id"`
+	URL        string    `json:"url"`
+	File       io.Reader `json:"-"`
 }
 
 type ExerciseMediaUpload struct {

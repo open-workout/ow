@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"time"
 )
 
@@ -156,7 +157,10 @@ func (c *Client) AddExerciseMedia(ctx context.Context, exerciseID, userID int64,
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 
-	fw, err := mw.CreateFormFile("file", filename)
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename=%q`, filename))
+	h.Set("Content-Type", mimeType)
+	fw, err := mw.CreatePart(h)
 	if err != nil {
 		return err
 	}
