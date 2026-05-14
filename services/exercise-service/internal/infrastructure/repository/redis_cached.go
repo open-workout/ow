@@ -31,6 +31,10 @@ func (r *RedisCachedRepository) AddExerciseMedia(ctx context.Context, exerciseID
 	return r.repo.AddExerciseMedia(ctx, exerciseID, media)
 }
 
+func (r *RedisCachedRepository) GetExerciseMedia(ctx context.Context, exerciseID int64, callerUserID int64) ([]domain.ExerciseMedia, error) {
+	return r.repo.GetExerciseMedia(ctx, exerciseID, callerUserID)
+}
+
 func (r *RedisCachedRepository) ListPublicExercises(ctx context.Context) ([]domain.ExerciseModel, error) {
 	const cacheKey = "public_exercises"
 

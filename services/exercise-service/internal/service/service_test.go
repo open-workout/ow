@@ -81,9 +81,13 @@ func TestCreateExercise_RepoError(t *testing.T) {
 
 func TestAddExerciseMedia_Success(t *testing.T) {
 	uploadCalled := false
+	const ownerID int64 = 1
 
 	mockRepo := &repository.MockRepository{
-		AddExerciseMediaFunc: func(ctx context.Context, exerciseID int64, media *domain.ExerciseMedia) error {
+		GetExerciseByIdFunc: func(_ context.Context, id int64, _ int64) (*domain.ExerciseModel, error) {
+			return &domain.ExerciseModel{ExerciseID: id, UserID: ownerID}, nil
+		},
+		AddExerciseMediaFunc: func(_ context.Context, _ int64, _ *domain.ExerciseMedia) error {
 			return nil
 		},
 	}
@@ -99,62 +103,78 @@ func TestAddExerciseMedia_Success(t *testing.T) {
 	err := svc.AddExerciseMedia(
 		context.Background(),
 		1,
-		&domain.ExerciseMedia{ExerciseID: 1, UserID: 1},
+		ownerID,
+		&domain.ExerciseMedia{ExerciseID: 1, UserID: ownerID},
 		&domain.ExerciseMediaUpload{Filename: "1.jpg", File: strings.NewReader("data")},
 	)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
 	if !uploadCalled {
 		t.Error("expected upload to be called")
 	}
 }
 
-func TestAddExerciseMedia_RepoError_SkipsUpload(t *testing.T) {
-	uploadCalled := false
+func TestAddExerciseMedia_Forbidden(t *testing.T) {
+	mockRepo := &repository.MockRepository{
+		GetExerciseByIdFunc: func(_ context.Context, id int64, _ int64) (*domain.ExerciseModel, error) {
+			return &domain.ExerciseModel{ExerciseID: id, UserID: 99}, nil
+		},
+	}
+
+	svc := service.NewService(mockRepo, storage.MockMediaStorage{})
+	err := svc.AddExerciseMedia(context.Background(), 1, 1, &domain.ExerciseMedia{}, &domain.ExerciseMediaUpload{})
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Errorf("expected ErrForbidden, got %v", err)
+	}
+}
+
+func TestAddExerciseMedia_RepoError(t *testing.T) {
+	const ownerID int64 = 1
 
 	mockRepo := &repository.MockRepository{
+		GetExerciseByIdFunc: func(_ context.Context, id int64, _ int64) (*domain.ExerciseModel, error) {
+			return &domain.ExerciseModel{ExerciseID: id, UserID: ownerID}, nil
+		},
 		AddExerciseMediaFunc: func(_ context.Context, _ int64, _ *domain.ExerciseMedia) error {
 			return errRepo
 		},
 	}
 
 	mockMedia := &storage.MockMediaStorage{
-		UploadFunc: func(_ context.Context, file *domain.ExerciseMediaUpload) (string, error) {
-			uploadCalled = true
-			return "", nil
+		UploadFunc: func(_ context.Context, _ *domain.ExerciseMediaUpload) (string, error) {
+			return "https://example.com/1.jpg", nil
 		},
 	}
 
 	svc := service.NewService(mockRepo, mockMedia)
-
-	err := svc.AddExerciseMedia(context.Background(), 1, &domain.ExerciseMedia{}, &domain.ExerciseMediaUpload{})
+	err := svc.AddExerciseMedia(context.Background(), 1, ownerID, &domain.ExerciseMedia{}, &domain.ExerciseMediaUpload{})
 	if !errors.Is(err, errRepo) {
 		t.Errorf("expected repo error, got %v", err)
-	}
-	if uploadCalled {
-		t.Error("Upload should not be called when repo fails")
 	}
 }
 
 func TestAddExerciseMedia_StorageError(t *testing.T) {
+	const ownerID int64 = 1
 
 	mockRepo := &repository.MockRepository{
+		GetExerciseByIdFunc: func(_ context.Context, id int64, _ int64) (*domain.ExerciseModel, error) {
+			return &domain.ExerciseModel{ExerciseID: id, UserID: ownerID}, nil
+		},
 		AddExerciseMediaFunc: func(_ context.Context, _ int64, _ *domain.ExerciseMedia) error {
 			return nil
 		},
 	}
 
 	mockMedia := &storage.MockMediaStorage{
-		UploadFunc: func(_ context.Context, file *domain.ExerciseMediaUpload) (string, error) {
+		UploadFunc: func(_ context.Context, _ *domain.ExerciseMediaUpload) (string, error) {
 			return "", errStorage
 		},
 	}
 
 	svc := service.NewService(mockRepo, mockMedia)
-	err := svc.AddExerciseMedia(context.Background(), 1, &domain.ExerciseMedia{}, &domain.ExerciseMediaUpload{})
+	err := svc.AddExerciseMedia(context.Background(), 1, ownerID, &domain.ExerciseMedia{}, &domain.ExerciseMediaUpload{})
 	if !errors.Is(err, errStorage) {
 		t.Errorf("expected storage error, got %v", err)
 	}

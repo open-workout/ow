@@ -163,10 +163,26 @@ func (h *ExerciseHandler) DeleteExercise(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+var allowedMIME = map[string]bool{
+	"image/jpeg":      true,
+	"image/png":       true,
+	"image/gif":       true,
+	"image/webp":      true,
+	"video/mp4":       true,
+	"video/quicktime": true,
+	"video/webm":      true,
+}
+
 func (h *ExerciseHandler) AddExerciseMedia(w http.ResponseWriter, r *http.Request) {
 	exerciseID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		http.Error(w, "invalid exercise id", http.StatusBadRequest)
+		return
+	}
+
+	callerUserID, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
+	if err != nil {
+		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
 		return
 	}
 
@@ -182,25 +198,56 @@ func (h *ExerciseHandler) AddExerciseMedia(w http.ResponseWriter, r *http.Reques
 	}
 	defer file.Close()
 
-	userID, err := strconv.ParseInt(r.FormValue("user_id"), 10, 64)
-	if err != nil {
-		http.Error(w, "invalid user_id", http.StatusBadRequest)
+	mimeType := header.Header.Get("Content-Type")
+	if !allowedMIME[mimeType] {
+		http.Error(w, "unsupported file type", http.StatusBadRequest)
 		return
 	}
 
-	media := &domain.ExerciseMedia{ExerciseID: exerciseID, UserID: userID}
+	media := &domain.ExerciseMedia{ExerciseID: exerciseID, UserID: callerUserID}
 	upload := &domain.ExerciseMediaUpload{
 		ExerciseID: exerciseID,
-		UserID:     userID,
+		UserID:     callerUserID,
 		File:       file,
 		Filename:   header.Filename,
-		MimeType:   header.Header.Get("Content-Type"),
+		MimeType:   mimeType,
 	}
 
-	if err := h.svc.AddExerciseMedia(r.Context(), exerciseID, media, upload); err != nil {
+	if err := h.svc.AddExerciseMedia(r.Context(), exerciseID, callerUserID, media, upload); err != nil {
+		if errors.Is(err, domain.ErrForbidden) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "failed to add media", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ExerciseHandler) GetExerciseMedia(w http.ResponseWriter, r *http.Request) {
+	exerciseID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid exercise id", http.StatusBadRequest)
+		return
+	}
+
+	callerUserID, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
+	if err != nil {
+		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+		return
+	}
+
+	media, err := h.svc.GetExerciseMedia(r.Context(), exerciseID, callerUserID)
+	if err != nil {
+		http.Error(w, "failed to get media", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(media)
 }

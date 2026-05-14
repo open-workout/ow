@@ -229,6 +229,32 @@ func (r *SqlRepository) DeleteExercise(ctx context.Context, callerUserID int64, 
 	return nil
 }
 
+func (r *SqlRepository) GetExerciseMedia(ctx context.Context, exerciseID int64, callerUserID int64) ([]domain.ExerciseMedia, error) {
+	query := `
+		SELECT em.exercise_id, em.url, em.user_id
+		FROM exercise_media em
+		JOIN exercises e ON e.exercise_id = em.exercise_id
+		WHERE em.exercise_id = $1
+		  AND (e.is_private = false OR e.user_id = $2 OR $2 = 0)
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, exerciseID, callerUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var media []domain.ExerciseMedia
+	for rows.Next() {
+		var m domain.ExerciseMedia
+		if err := rows.Scan(&m.ExerciseID, &m.URL, &m.UserID); err != nil {
+			return nil, err
+		}
+		media = append(media, m)
+	}
+	return media, rows.Err()
+}
+
 func (r *SqlRepository) GetExerciseById(ctx context.Context, id int64, callerUserID int64) (*domain.ExerciseModel, error) {
 	query := `
 		SELECT exercise_id, name, exercise_type, primary_muscle, secondary_muscles, description, user_id, is_private, weight_direction
