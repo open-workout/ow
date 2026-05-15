@@ -13,8 +13,9 @@ type Config struct {
 	WriteTimeout time.Duration
 
 	//Auth
-	JWTSecret string
-	JWTIssuer string
+	JWTSecret      string
+	JWTIssuer      string
+	AccessTokenTTL time.Duration
 
 	//Services
 	UserServiceURL     string
@@ -38,8 +39,9 @@ func Load() *Config {
 		WriteTimeout: time.Duration(env.GetInt("WRITE_TIMEOUT_MS", 5000)) * time.Millisecond,
 
 		// Auth
-		JWTSecret: env.GetString("JWT_SECRET", "dev-secret-change-me"),
-		JWTIssuer: env.GetString("JWT_ISSUER", "open-workout"),
+		JWTSecret:      env.GetString("JWT_SECRET", "dev-secret-change-me"),
+		JWTIssuer:      env.GetString("JWT_ISSUER", "open-workout"),
+		AccessTokenTTL: time.Duration(env.GetInt("ACCESS_TOKEN_TTL_MIN", 60)) * time.Minute,
 
 		// Services
 		UserServiceURL:     env.GetString("USER_SERVICE_URL", "http://localhost:8081"),

@@ -35,6 +35,9 @@ func main() {
 	mux.HandleFunc("PUT /users/{id}", userHandler.UpdateUser)
 	mux.HandleFunc("DELETE /users/{id}", userHandler.DeleteUser)
 	mux.HandleFunc("PUT /users/{id}/split", userHandler.UpdateSplit)
+	mux.HandleFunc("POST /internal/auth/login", userHandler.Login)
+	mux.HandleFunc("POST /internal/auth/refresh", userHandler.Refresh)
+	mux.HandleFunc("POST /internal/auth/logout", userHandler.Logout)
 
 	port := 8081
 	if p := os.Getenv("USER_SERVICE_PORT"); p != "" {
