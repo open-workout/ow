@@ -63,12 +63,21 @@ func setupSchema(t *testing.T, db *sql.DB) {
 	t.Helper()
 	_, err := db.Exec(`
 		CREATE TABLE users (
-			user_id     BIGSERIAL PRIMARY KEY,
-			email       TEXT NOT NULL UNIQUE,
-			sport_goals TEXT[] NOT NULL DEFAULT '{}',
-			gender      TEXT,
-			birthdate   TEXT,
-			split       JSONB NOT NULL DEFAULT '{}'
+			user_id       BIGSERIAL PRIMARY KEY,
+			email         TEXT NOT NULL UNIQUE,
+			username      TEXT NOT NULL UNIQUE,
+			password_hash TEXT NOT NULL DEFAULT '',
+			sport_goals   TEXT[] NOT NULL DEFAULT '{}',
+			gender        TEXT,
+			birthdate     TEXT,
+			split         JSONB NOT NULL DEFAULT '{}'
+		);
+		CREATE TABLE refresh_tokens (
+			id         BIGSERIAL PRIMARY KEY,
+			user_id    BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+			token_hash TEXT NOT NULL UNIQUE,
+			expires_at TIMESTAMPTZ NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
 	`)
 	if err != nil {
@@ -84,6 +93,7 @@ func TestSqlRepository_CreateUser(t *testing.T) {
 
 	u := &domain.User{
 		Email:      "alice@example.com",
+		Username:   "alice",
 		SportGoals: []string{"strength", "endurance"},
 		Gender:     "female",
 		Birthdate:  "1990-04-15",
@@ -117,7 +127,7 @@ func TestSqlRepository_CreateUser_NilSportGoals(t *testing.T) {
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	u := &domain.User{Email: "bob@example.com"}
+	u := &domain.User{Email: "bob@example.com", Username: "bob"}
 
 	created, err := repo.CreateUser(context.Background(), u)
 	if err != nil {
@@ -134,7 +144,7 @@ func TestSqlRepository_CreateUser_DuplicateEmail(t *testing.T) {
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	u := &domain.User{Email: "dup@example.com"}
+	u := &domain.User{Email: "dup@example.com", Username: "dup"}
 	_, err := repo.CreateUser(context.Background(), u)
 	if err != nil {
 		t.Fatalf("first create failed: %v", err)
@@ -154,6 +164,7 @@ func TestSqlRepository_GetUser(t *testing.T) {
 
 	created, _ := repo.CreateUser(context.Background(), &domain.User{
 		Email:     "get@example.com",
+		Username:  "getuser",
 		Gender:    "male",
 		Birthdate: "1985-01-01",
 	})
@@ -190,6 +201,7 @@ func TestSqlRepository_UpdateUser(t *testing.T) {
 
 	created, _ := repo.CreateUser(context.Background(), &domain.User{
 		Email:     "update@example.com",
+		Username:  "updateuser",
 		Gender:    "male",
 		Birthdate: "2000-06-01",
 	})
@@ -219,7 +231,7 @@ func TestSqlRepository_UpdateUser_NotFound(t *testing.T) {
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	_, err := repo.UpdateUser(context.Background(), &domain.User{UserId: 999, Email: "ghost@example.com"})
+	_, err := repo.UpdateUser(context.Background(), &domain.User{UserId: 999, Email: "ghost@example.com", Username: "ghost"})
 	if err == nil {
 		t.Fatal("expected error for missing user, got nil")
 	}
@@ -231,7 +243,7 @@ func TestSqlRepository_DeleteUser(t *testing.T) {
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	created, _ := repo.CreateUser(context.Background(), &domain.User{Email: "del@example.com"})
+	created, _ := repo.CreateUser(context.Background(), &domain.User{Email: "del@example.com", Username: "del"})
 
 	if err := repo.DeleteUser(context.Background(), created.UserId); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -262,7 +274,7 @@ func TestSqlRepository_UpdateSplit(t *testing.T) {
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	created, _ := repo.CreateUser(context.Background(), &domain.User{Email: "split@example.com"})
+	created, _ := repo.CreateUser(context.Background(), &domain.User{Email: "split@example.com", Username: "splituser"})
 
 	split := domain.Split{
 		Elements: []domain.SplitElement{
@@ -296,6 +308,126 @@ func TestSqlRepository_UpdateSplit_NotFound(t *testing.T) {
 	}
 }
 
+// --- GetByUsername ---
+
+func TestSqlRepository_GetByUsername(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	_, _ = repo.CreateUser(context.Background(), &domain.User{
+		Email:        "byname@example.com",
+		Username:     "byname",
+		PasswordHash: "stored-hash",
+	})
+
+	got, err := repo.GetByUsername(context.Background(), "byname")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Username != "byname" {
+		t.Errorf("expected username byname, got %s", got.Username)
+	}
+	if got.Email != "byname@example.com" {
+		t.Errorf("expected email byname@example.com, got %s", got.Email)
+	}
+	if got.PasswordHash != "stored-hash" {
+		t.Errorf("expected PasswordHash stored-hash, got %s", got.PasswordHash)
+	}
+}
+
+func TestSqlRepository_GetByUsername_NotFound(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	_, err := repo.GetByUsername(context.Background(), "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for missing username, got nil")
+	}
+}
+
+// --- Refresh token ---
+
+func TestSqlRepository_CreateAndGetRefreshToken(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	user, _ := repo.CreateUser(context.Background(), &domain.User{Email: "rt@example.com", Username: "rtuser"})
+
+	expiresAt := time.Now().Add(time.Hour)
+	if err := repo.CreateRefreshToken(context.Background(), user.UserId, "testhash", expiresAt); err != nil {
+		t.Fatalf("CreateRefreshToken: %v", err)
+	}
+
+	userID, err := repo.GetUserIDByRefreshToken(context.Background(), "testhash")
+	if err != nil {
+		t.Fatalf("GetUserIDByRefreshToken: %v", err)
+	}
+	if userID != user.UserId {
+		t.Errorf("expected userID %d, got %d", user.UserId, userID)
+	}
+}
+
+func TestSqlRepository_GetUserIDByRefreshToken_NotFound(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	_, err := repo.GetUserIDByRefreshToken(context.Background(), "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for missing token, got nil")
+	}
+}
+
+func TestSqlRepository_GetUserIDByRefreshToken_Expired(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	user, _ := repo.CreateUser(context.Background(), &domain.User{Email: "exp@example.com", Username: "expuser"})
+
+	_, err := db.Exec(
+		`INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+		user.UserId, "expiredhash", time.Now().Add(-time.Hour),
+	)
+	if err != nil {
+		t.Fatalf("insert expired token: %v", err)
+	}
+
+	_, err = repo.GetUserIDByRefreshToken(context.Background(), "expiredhash")
+	if err == nil {
+		t.Fatal("expected error for expired token, got nil")
+	}
+}
+
+func TestSqlRepository_DeleteRefreshToken(t *testing.T) {
+	db, cleanup := setupPostgres(t)
+	defer cleanup()
+	setupSchema(t, db)
+	repo := repository.NewSqlRepository(db)
+
+	user, _ := repo.CreateUser(context.Background(), &domain.User{Email: "del2@example.com", Username: "del2user"})
+
+	if err := repo.CreateRefreshToken(context.Background(), user.UserId, "delhash", time.Now().Add(time.Hour)); err != nil {
+		t.Fatalf("CreateRefreshToken: %v", err)
+	}
+	if err := repo.DeleteRefreshToken(context.Background(), "delhash"); err != nil {
+		t.Fatalf("DeleteRefreshToken: %v", err)
+	}
+
+	_, err := repo.GetUserIDByRefreshToken(context.Background(), "delhash")
+	if err == nil {
+		t.Fatal("expected error after delete, got nil")
+	}
+}
+
 func TestSqlRepository_UpdateSplit_PreservesOtherFields(t *testing.T) {
 	db, cleanup := setupPostgres(t)
 	defer cleanup()
@@ -304,6 +436,7 @@ func TestSqlRepository_UpdateSplit_PreservesOtherFields(t *testing.T) {
 
 	created, _ := repo.CreateUser(context.Background(), &domain.User{
 		Email:      "preserve@example.com",
+		Username:   "preserve",
 		Gender:     "female",
 		SportGoals: []string{"cardio"},
 	})

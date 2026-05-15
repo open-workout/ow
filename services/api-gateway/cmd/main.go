@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/open-workout/ow/services/api-gateway/internal/clients/authclient"
 	"github.com/open-workout/ow/services/api-gateway/internal/clients/exerciseclient"
 	"github.com/open-workout/ow/services/api-gateway/internal/clients/userclient"
 	"github.com/open-workout/ow/services/api-gateway/internal/clients/workoutclient"
@@ -19,13 +20,15 @@ func main() {
 	userClient := userclient.New(cfg.UserServiceURL)
 	exerciseClient := exerciseclient.New(cfg.ExerciseServiceURL)
 	workoutClient := workoutclient.New(cfg.WorkoutServiceURL)
+	authClient := authclient.New(cfg.UserServiceURL)
 
 	healthHandler := handlers.NewHealthHandler()
 	userHandler := handlers.NewUserHandler(userClient)
 	exerciseHandler := handlers.NewExerciseHandler(exerciseClient)
 	workoutHandler := handlers.NewWorkoutHandler(workoutClient)
+	authHandler := handlers.NewAuthHandler(cfg, authClient)
 
-	h := transport.NewRouter(cfg, healthHandler, workoutHandler, userHandler, exerciseHandler)
+	h := transport.NewRouter(cfg, healthHandler, workoutHandler, userHandler, exerciseHandler, authHandler)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),

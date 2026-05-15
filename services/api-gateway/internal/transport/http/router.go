@@ -20,6 +20,7 @@ type Router struct {
 	workoutHandler  *handlers.WorkoutHandler
 	userHandler     *handlers.UserHandler
 	exerciseHandler *handlers.ExerciseHandler
+	authHandler     *handlers.AuthHandler
 }
 
 func NewRouter(
@@ -28,6 +29,7 @@ func NewRouter(
 	workoutHandler *handlers.WorkoutHandler,
 	userHandler *handlers.UserHandler,
 	exerciseHandler *handlers.ExerciseHandler,
+	authHandler *handlers.AuthHandler,
 ) http.Handler {
 
 	r := chi.NewRouter()
@@ -38,6 +40,7 @@ func NewRouter(
 		workoutHandler:  workoutHandler,
 		userHandler:     userHandler,
 		exerciseHandler: exerciseHandler,
+		authHandler:     authHandler,
 	}
 
 	router.register(r)
@@ -64,6 +67,13 @@ func (rt *Router) register(r chi.Router) {
 	// Health
 	// =====================
 	r.Get("/health", rt.healthHandler.Check)
+
+	// =====================
+	// Auth
+	// =====================
+	r.Post("/auth/login", rt.authHandler.Login)
+	r.Post("/auth/refresh", rt.authHandler.Refresh)
+	r.Post("/auth/logout", rt.authHandler.Logout)
 
 	// =====================
 	// Users

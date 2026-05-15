@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"strings"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type contextKey string
@@ -13,54 +15,50 @@ const (
 	UserRoleKey contextKey = "user_role"
 )
 
-func Auth(jwtSecret string) func(http.Handler) http.Handler {
+type claims struct {
+	Role string `json:"role"`
+	jwt.RegisteredClaims
+}
 
+func Auth(jwtSecret string) func(http.Handler) http.Handler {
+	key := []byte(jwtSecret)
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
 			authHeader := r.Header.Get("Authorization")
-
 			if authHeader == "" {
 				http.Error(w, "missing authorization header", http.StatusUnauthorized)
+				return
 			}
 
 			parts := strings.Split(authHeader, " ")
-
 			if len(parts) != 2 || parts[0] != "Bearer" {
 				http.Error(w, "invalid authorization header", http.StatusUnauthorized)
 				return
 			}
 
-			token := parts[1]
-
-			//TODO: replace this with real jwt parsing/validation
-
-			// For now we fake user extraction from token
-			userID, role := parseFakeIdentity(token)
-			if userID == "" {
+			var c claims
+			token, err := jwt.ParseWithClaims(parts[1], &c, func(t *jwt.Token) (any, error) {
+				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, jwt.ErrSignatureInvalid
+				}
+				return key, nil
+			})
+			if err != nil || !token.Valid {
 				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
 			}
 
-			ctx = context.WithValue(ctx, UserIDKey, userID)
-			ctx = context.WithValue(ctx, UserRoleKey, role)
+			userID, err := c.GetSubject()
+			if err != nil || userID == "" {
+				http.Error(w, "invalid token", http.StatusUnauthorized)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), UserIDKey, userID)
+			ctx = context.WithValue(ctx, UserRoleKey, c.Role)
 			next.ServeHTTP(w, r.WithContext(ctx))
-
 		}
-
 		return http.HandlerFunc(fn)
-	}
-
-}
-
-func parseFakeIdentity(token string) (userID, role string) {
-	switch token {
-	case "dev-token":
-		return "user-123", "user"
-	case "admin-token":
-		return "1", "admin"
-	default:
-		return "", ""
 	}
 }
 

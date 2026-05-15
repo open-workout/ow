@@ -6,3 +6,5 @@ require (
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/open-workout/ow v0.0.0-20260421144451-a58b0c657d1e
 )
+
+require github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
