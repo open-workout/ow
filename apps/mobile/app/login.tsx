@@ -69,7 +69,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 32 }}>
-          <Text style={{ color: '#71717a', fontSize: 14 }}>Don't have an account? </Text>
+          <Text style={{ color: '#71717a', fontSize: 14 }}>Don&#39;t have an account? </Text>
           <TouchableOpacity onPress={() => router.replace('/signup')}>
             <Text style={{ color: '#f4f4f5', fontSize: 14, fontWeight: '600' }}>Create one</Text>
           </TouchableOpacity>
