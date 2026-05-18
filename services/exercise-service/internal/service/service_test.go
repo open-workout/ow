@@ -16,6 +16,8 @@ import (
 var errRepo = errors.New("repo error")
 var errStorage = errors.New("storage error")
 
+const testUserID = "auth0|user-1"
+
 func TestCreateExercise_Success(t *testing.T) {
 	input := &domain.ExerciseModel{
 		Name:             "Pull Up",
@@ -23,7 +25,7 @@ func TestCreateExercise_Success(t *testing.T) {
 		PrimaryMuscle:    "back",
 		SecondaryMuscles: []string{"biceps"},
 		Description:      "pull movement",
-		UserID:           1,
+		UserID:           testUserID,
 		IsPrivate:        false,
 	}
 	want := &domain.ExerciseModel{
@@ -32,7 +34,7 @@ func TestCreateExercise_Success(t *testing.T) {
 		PrimaryMuscle:    "back",
 		SecondaryMuscles: []string{"biceps"},
 		Description:      "pull movement",
-		UserID:           1,
+		UserID:           testUserID,
 		IsPrivate:        false,
 	}
 
@@ -66,7 +68,7 @@ func TestCreateExercise_RepoError(t *testing.T) {
 		PrimaryMuscle:    "back",
 		SecondaryMuscles: []string{"biceps"},
 		Description:      "pull movement",
-		UserID:           1,
+		UserID:           testUserID,
 		IsPrivate:        false,
 	}
 
@@ -76,16 +78,14 @@ func TestCreateExercise_RepoError(t *testing.T) {
 	if !errors.Is(err, errRepo) {
 		t.Errorf("got %v, want %v", err, errRepo)
 	}
-
 }
 
 func TestAddExerciseMedia_Success(t *testing.T) {
 	uploadCalled := false
-	const ownerID int64 = 1
 
 	mockRepo := &repository.MockRepository{
-		GetExerciseByIdFunc: func(_ context.Context, id int64, _ int64) (*domain.ExerciseModel, error) {
-			return &domain.ExerciseModel{ExerciseID: id, UserID: ownerID}, nil
+		GetExerciseByIdFunc: func(_ context.Context, id int64, _ string) (*domain.ExerciseModel, error) {
+			return &domain.ExerciseModel{ExerciseID: id, UserID: testUserID}, nil
 		},
 		AddExerciseMediaFunc: func(_ context.Context, _ int64, _ *domain.ExerciseMedia) error {
 			return nil
@@ -103,8 +103,8 @@ func TestAddExerciseMedia_Success(t *testing.T) {
 	err := svc.AddExerciseMedia(
 		context.Background(),
 		1,
-		ownerID,
-		&domain.ExerciseMedia{ExerciseID: 1, UserID: ownerID},
+		testUserID,
+		&domain.ExerciseMedia{ExerciseID: 1, UserID: testUserID},
 		&domain.ExerciseMediaUpload{Filename: "1.jpg", File: strings.NewReader("data")},
 	)
 
@@ -118,24 +118,22 @@ func TestAddExerciseMedia_Success(t *testing.T) {
 
 func TestAddExerciseMedia_Forbidden(t *testing.T) {
 	mockRepo := &repository.MockRepository{
-		GetExerciseByIdFunc: func(_ context.Context, id int64, _ int64) (*domain.ExerciseModel, error) {
-			return &domain.ExerciseModel{ExerciseID: id, UserID: 99}, nil
+		GetExerciseByIdFunc: func(_ context.Context, id int64, _ string) (*domain.ExerciseModel, error) {
+			return &domain.ExerciseModel{ExerciseID: id, UserID: "auth0|other"}, nil
 		},
 	}
 
 	svc := service.NewService(mockRepo, storage.MockMediaStorage{})
-	err := svc.AddExerciseMedia(context.Background(), 1, 1, &domain.ExerciseMedia{}, &domain.ExerciseMediaUpload{})
+	err := svc.AddExerciseMedia(context.Background(), 1, testUserID, &domain.ExerciseMedia{}, &domain.ExerciseMediaUpload{})
 	if !errors.Is(err, domain.ErrForbidden) {
 		t.Errorf("expected ErrForbidden, got %v", err)
 	}
 }
 
 func TestAddExerciseMedia_RepoError(t *testing.T) {
-	const ownerID int64 = 1
-
 	mockRepo := &repository.MockRepository{
-		GetExerciseByIdFunc: func(_ context.Context, id int64, _ int64) (*domain.ExerciseModel, error) {
-			return &domain.ExerciseModel{ExerciseID: id, UserID: ownerID}, nil
+		GetExerciseByIdFunc: func(_ context.Context, id int64, _ string) (*domain.ExerciseModel, error) {
+			return &domain.ExerciseModel{ExerciseID: id, UserID: testUserID}, nil
 		},
 		AddExerciseMediaFunc: func(_ context.Context, _ int64, _ *domain.ExerciseMedia) error {
 			return errRepo
@@ -149,18 +147,16 @@ func TestAddExerciseMedia_RepoError(t *testing.T) {
 	}
 
 	svc := service.NewService(mockRepo, mockMedia)
-	err := svc.AddExerciseMedia(context.Background(), 1, ownerID, &domain.ExerciseMedia{}, &domain.ExerciseMediaUpload{})
+	err := svc.AddExerciseMedia(context.Background(), 1, testUserID, &domain.ExerciseMedia{}, &domain.ExerciseMediaUpload{})
 	if !errors.Is(err, errRepo) {
 		t.Errorf("expected repo error, got %v", err)
 	}
 }
 
 func TestAddExerciseMedia_StorageError(t *testing.T) {
-	const ownerID int64 = 1
-
 	mockRepo := &repository.MockRepository{
-		GetExerciseByIdFunc: func(_ context.Context, id int64, _ int64) (*domain.ExerciseModel, error) {
-			return &domain.ExerciseModel{ExerciseID: id, UserID: ownerID}, nil
+		GetExerciseByIdFunc: func(_ context.Context, id int64, _ string) (*domain.ExerciseModel, error) {
+			return &domain.ExerciseModel{ExerciseID: id, UserID: testUserID}, nil
 		},
 		AddExerciseMediaFunc: func(_ context.Context, _ int64, _ *domain.ExerciseMedia) error {
 			return nil
@@ -174,7 +170,7 @@ func TestAddExerciseMedia_StorageError(t *testing.T) {
 	}
 
 	svc := service.NewService(mockRepo, mockMedia)
-	err := svc.AddExerciseMedia(context.Background(), 1, ownerID, &domain.ExerciseMedia{}, &domain.ExerciseMediaUpload{})
+	err := svc.AddExerciseMedia(context.Background(), 1, testUserID, &domain.ExerciseMedia{}, &domain.ExerciseMediaUpload{})
 	if !errors.Is(err, errStorage) {
 		t.Errorf("expected storage error, got %v", err)
 	}
@@ -188,7 +184,7 @@ func TestListExercises_Success(t *testing.T) {
 			PrimaryMuscle:    "back",
 			SecondaryMuscles: []string{"biceps"},
 			Description:      "pull movement",
-			UserID:           1,
+			UserID:           testUserID,
 			IsPrivate:        false,
 		},
 		{
@@ -197,15 +193,15 @@ func TestListExercises_Success(t *testing.T) {
 			PrimaryMuscle:    "back",
 			SecondaryMuscles: []string{"legs"},
 			Description:      "pull movement",
-			UserID:           1,
+			UserID:           testUserID,
 			IsPrivate:        false,
 		},
 	}
 
 	mockRepo := &repository.MockRepository{
-		ListExercisesFunc: func(ctx context.Context, userID int64) ([]domain.ExerciseModel, error) {
-			if userID != 1 {
-				t.Errorf("got user_id %d, want 1", userID)
+		ListExercisesFunc: func(ctx context.Context, userID string) ([]domain.ExerciseModel, error) {
+			if userID != testUserID {
+				t.Errorf("got user_id %q, want %q", userID, testUserID)
 			}
 			return want, nil
 		},
@@ -218,7 +214,7 @@ func TestListExercises_Success(t *testing.T) {
 	}
 	svc := service.NewService(mockRepo, mockMedia)
 
-	got, err := svc.ListExercises(context.Background(), 1)
+	got, err := svc.ListExercises(context.Background(), testUserID)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -236,10 +232,11 @@ func buildExercise(id int64, primary string, secondary ...string) domain.Exercis
 		PrimaryMuscle:    primary,
 		SecondaryMuscles: secondary,
 		Description:      "exercise",
-		UserID:           1,
+		UserID:           testUserID,
 	}
 }
-func muscleState(userID int64, muscles map[string]float64) domain.MuscleState {
+
+func muscleState(userID string, muscles map[string]float64) domain.MuscleState {
 	return domain.MuscleState{
 		UserID:  userID,
 		Muscles: muscles,
@@ -250,20 +247,19 @@ func TestGetTopExercises_DefaultLimitWhenMinusOne(t *testing.T) {
 
 	exercises := make([]domain.ExerciseModel, 15)
 	mockRepo := &repository.MockRepository{
-		ListExercisesFunc: func(ctx context.Context, userID int64) ([]domain.ExerciseModel, error) {
+		ListExercisesFunc: func(ctx context.Context, userID string) ([]domain.ExerciseModel, error) {
 			return exercises, nil
 		},
 	}
 
 	mockMedia := &storage.MockMediaStorage{}
 	svc := service.NewService(mockRepo, mockMedia)
-	// 15 exercises that all score > 0; with limit=-1 only 10 should be returned.
 
 	for i := range exercises {
 		exercises[i] = buildExercise(int64(i+1), "chest")
 	}
 
-	state := muscleState(1, map[string]float64{"chest": 0.8})
+	state := muscleState(testUserID, map[string]float64{"chest": 0.8})
 	got, err := svc.GetTopExercises(context.Background(), state, -1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -275,7 +271,7 @@ func TestGetTopExercises_DefaultLimitWhenMinusOne(t *testing.T) {
 
 func TestGetTopExercises_LimitCappedToAvailable(t *testing.T) {
 	mockRepo := &repository.MockRepository{
-		ListExercisesFunc: func(_ context.Context, _ int64) ([]domain.ExerciseModel, error) {
+		ListExercisesFunc: func(_ context.Context, _ string) ([]domain.ExerciseModel, error) {
 			return []domain.ExerciseModel{
 				buildExercise(1, "chest"),
 				buildExercise(2, "chest"),
@@ -284,7 +280,7 @@ func TestGetTopExercises_LimitCappedToAvailable(t *testing.T) {
 	}
 	svc := service.NewService(mockRepo, &storage.MockMediaStorage{})
 
-	got, err := svc.GetTopExercises(context.Background(), muscleState(1, map[string]float64{"chest": 0.5}), 10)
+	got, err := svc.GetTopExercises(context.Background(), muscleState(testUserID, map[string]float64{"chest": 0.5}), 10)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -295,16 +291,16 @@ func TestGetTopExercises_LimitCappedToAvailable(t *testing.T) {
 
 func TestGetTopExercises_ZeroScoreExercisesExcluded(t *testing.T) {
 	mockRepo := &repository.MockRepository{
-		ListExercisesFunc: func(_ context.Context, _ int64) ([]domain.ExerciseModel, error) {
+		ListExercisesFunc: func(_ context.Context, _ string) ([]domain.ExerciseModel, error) {
 			return []domain.ExerciseModel{
-				buildExercise(1, "chest"), // matches state
-				buildExercise(2, "back"),  // no match → score 0, excluded
+				buildExercise(1, "chest"),
+				buildExercise(2, "back"),
 			}, nil
 		},
 	}
 	svc := service.NewService(mockRepo, &storage.MockMediaStorage{})
 
-	got, err := svc.GetTopExercises(context.Background(), muscleState(1, map[string]float64{"chest": 1.0}), 10)
+	got, err := svc.GetTopExercises(context.Background(), muscleState(testUserID, map[string]float64{"chest": 1.0}), 10)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -317,11 +313,8 @@ func TestGetTopExercises_ZeroScoreExercisesExcluded(t *testing.T) {
 }
 
 func TestGetTopExercises_SortedByScoreDescending(t *testing.T) {
-	// ex1: primary only        → score = (0.9 * 1.2) / 1.2        = 0.9
-	// ex2: primary + secondary → score = (0.9*1.2 + 0.8*1) / 2.2 ≈ 0.854
-	// ex1 scores higher because adding a lower-valued secondary muscle dilutes the average.
 	mockRepo := &repository.MockRepository{
-		ListExercisesFunc: func(_ context.Context, _ int64) ([]domain.ExerciseModel, error) {
+		ListExercisesFunc: func(_ context.Context, _ string) ([]domain.ExerciseModel, error) {
 			return []domain.ExerciseModel{
 				buildExercise(1, "chest"),
 				buildExercise(2, "chest", "triceps"),
@@ -330,7 +323,7 @@ func TestGetTopExercises_SortedByScoreDescending(t *testing.T) {
 	}
 	svc := service.NewService(mockRepo, &storage.MockMediaStorage{})
 
-	got, err := svc.GetTopExercises(context.Background(), muscleState(1, map[string]float64{"chest": 0.9, "triceps": 0.8}), 10)
+	got, err := svc.GetTopExercises(context.Background(), muscleState(testUserID, map[string]float64{"chest": 0.9, "triceps": 0.8}), 10)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -341,13 +334,13 @@ func TestGetTopExercises_SortedByScoreDescending(t *testing.T) {
 
 func TestGetTopExercises_RepoError(t *testing.T) {
 	mockRepo := &repository.MockRepository{
-		ListExercisesFunc: func(_ context.Context, _ int64) ([]domain.ExerciseModel, error) {
+		ListExercisesFunc: func(_ context.Context, _ string) ([]domain.ExerciseModel, error) {
 			return nil, errRepo
 		},
 	}
 	svc := service.NewService(mockRepo, &storage.MockMediaStorage{})
 
-	_, err := svc.GetTopExercises(context.Background(), domain.MuscleState{UserID: 1}, 5)
+	_, err := svc.GetTopExercises(context.Background(), domain.MuscleState{UserID: testUserID}, 5)
 	if !errors.Is(err, errRepo) {
 		t.Errorf("expected repo error, got %v", err)
 	}
@@ -355,13 +348,13 @@ func TestGetTopExercises_RepoError(t *testing.T) {
 
 func TestGetTopExercises_EmptyList(t *testing.T) {
 	mockRepo := &repository.MockRepository{
-		ListExercisesFunc: func(_ context.Context, _ int64) ([]domain.ExerciseModel, error) {
+		ListExercisesFunc: func(_ context.Context, _ string) ([]domain.ExerciseModel, error) {
 			return []domain.ExerciseModel{}, nil
 		},
 	}
 	svc := service.NewService(mockRepo, &storage.MockMediaStorage{})
 
-	got, err := svc.GetTopExercises(context.Background(), muscleState(1, map[string]float64{"chest": 1}), 5)
+	got, err := svc.GetTopExercises(context.Background(), muscleState(testUserID, map[string]float64{"chest": 1}), 5)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

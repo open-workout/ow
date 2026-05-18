@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"time"
 )
 
@@ -19,15 +20,21 @@ type Exercise struct {
 	PrimaryMuscle    string   `json:"primary_muscle"`
 	SecondaryMuscles []string `json:"secondary_muscles"`
 	Description      string   `json:"description"`
-	UserID           int64    `json:"user_id"`
+	UserID           string   `json:"user_id"`
 	IsPrivate        bool     `json:"is_private"`
 	WeightDirection  int64    `json:"weight_direction"`
 }
 
 type TopExercisesRequest struct {
 	Muscles map[string]float64 `json:"muscles"`
-	UserID  int64              `json:"user_id"`
+	UserID  string             `json:"user_id"`
 	Limit   int                `json:"limit"`
+}
+
+type ExerciseMedia struct {
+	ExerciseID int64  `json:"exercise_id"`
+	UserID     string `json:"user_id"`
+	URL        string `json:"url"`
 }
 
 type Client struct {
@@ -71,9 +78,9 @@ func (c *Client) CreateExercise(ctx context.Context, exercise Exercise) (*Exerci
 	return &created, nil
 }
 
-func (c *Client) ListExercises(ctx context.Context, userID int64) ([]Exercise, error) {
+func (c *Client) ListExercises(ctx context.Context, userID string) ([]Exercise, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		fmt.Sprintf("%s/exercises?user_id=%d", c.baseURL, userID), nil)
+		fmt.Sprintf("%s/exercises?user_id=%s", c.baseURL, url.QueryEscape(userID)), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -125,13 +132,13 @@ func (c *Client) GetTopExercises(ctx context.Context, req TopExercisesRequest) (
 	return exercises, nil
 }
 
-func (c *Client) GetExerciseById(ctx context.Context, id int64, callerUserID int64) (*Exercise, error) {
+func (c *Client) GetExerciseById(ctx context.Context, id int64, callerUserID string) (*Exercise, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		fmt.Sprintf("%s/exercises/%d", c.baseURL, id), nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("X-User-ID", fmt.Sprintf("%d", callerUserID))
+	req.Header.Set("X-User-ID", callerUserID)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -153,7 +160,7 @@ func (c *Client) GetExerciseById(ctx context.Context, id int64, callerUserID int
 	return &ex, nil
 }
 
-func (c *Client) AddExerciseMedia(ctx context.Context, exerciseID, userID int64, filename, mimeType string, file io.Reader) error {
+func (c *Client) AddExerciseMedia(ctx context.Context, exerciseID int64, userID string, filename, mimeType string, file io.Reader) error {
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 
@@ -175,7 +182,7 @@ func (c *Client) AddExerciseMedia(ctx context.Context, exerciseID, userID int64,
 		return err
 	}
 	req.Header.Set("Content-Type", mw.FormDataContentType())
-	req.Header.Set("X-User-ID", fmt.Sprintf("%d", userID))
+	req.Header.Set("X-User-ID", userID)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -189,19 +196,13 @@ func (c *Client) AddExerciseMedia(ctx context.Context, exerciseID, userID int64,
 	return nil
 }
 
-type ExerciseMedia struct {
-	ExerciseID int64  `json:"exercise_id"`
-	UserID     int64  `json:"user_id"`
-	URL        string `json:"url"`
-}
-
-func (c *Client) GetExerciseMedia(ctx context.Context, exerciseID, callerUserID int64) ([]ExerciseMedia, error) {
+func (c *Client) GetExerciseMedia(ctx context.Context, exerciseID int64, callerUserID string) ([]ExerciseMedia, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		fmt.Sprintf("%s/exercises/%d/media", c.baseURL, exerciseID), nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("X-User-ID", fmt.Sprintf("%d", callerUserID))
+	req.Header.Set("X-User-ID", callerUserID)
 
 	resp, err := c.http.Do(req)
 	if err != nil {

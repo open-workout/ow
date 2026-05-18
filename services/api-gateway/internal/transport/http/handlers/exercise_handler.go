@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/open-workout/ow/services/api-gateway/internal/clients/exerciseclient"
+	appmw "github.com/open-workout/ow/services/api-gateway/internal/transport/http/middleware"
 )
 
 type ExerciseHandler struct {
@@ -37,11 +38,7 @@ func (h *ExerciseHandler) CreateExercise(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *ExerciseHandler) ListExercises(w http.ResponseWriter, r *http.Request) {
-	userID, err := strconv.ParseInt(r.URL.Query().Get("user_id"), 10, 64)
-	if err != nil {
-		http.Error(w, "invalid user_id", http.StatusBadRequest)
-		return
-	}
+	userID := appmw.GetUserID(r)
 
 	exercises, err := h.client.ListExercises(r.Context(), userID)
 	if err != nil {
@@ -77,11 +74,7 @@ func (h *ExerciseHandler) GetExerciseById(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	userID, err := effectiveUserID(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	userID := appmw.GetUserID(r)
 
 	ex, err := h.client.GetExerciseById(r.Context(), id, userID)
 	if err != nil {
@@ -100,11 +93,7 @@ func (h *ExerciseHandler) AddExerciseMedia(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	userID, err := effectiveUserID(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	userID := appmw.GetUserID(r)
 
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		http.Error(w, "failed to parse form", http.StatusBadRequest)
@@ -134,11 +123,7 @@ func (h *ExerciseHandler) GetExerciseMedia(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	userID, err := effectiveUserID(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	userID := appmw.GetUserID(r)
 
 	media, err := h.client.GetExerciseMedia(r.Context(), exerciseID, userID)
 	if err != nil {

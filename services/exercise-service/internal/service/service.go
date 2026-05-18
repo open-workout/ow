@@ -23,12 +23,12 @@ func (s *Service) CreateExercise(ctx context.Context, exercise *domain.ExerciseM
 	return s.repo.CreateExercise(ctx, exercise)
 }
 
-func (s *Service) AddExerciseMedia(ctx context.Context, exerciseID int64, callerUserID int64, media *domain.ExerciseMedia, file *domain.ExerciseMediaUpload) error {
+func (s *Service) AddExerciseMedia(ctx context.Context, exerciseID int64, callerUserID string, media *domain.ExerciseMedia, file *domain.ExerciseMediaUpload) error {
 	ex, err := s.repo.GetExerciseById(ctx, exerciseID, callerUserID)
 	if err != nil {
 		return err
 	}
-	if callerUserID != 0 && ex.UserID != callerUserID {
+	if callerUserID != "" && ex.UserID != callerUserID {
 		return domain.ErrForbidden
 	}
 
@@ -41,23 +41,23 @@ func (s *Service) AddExerciseMedia(ctx context.Context, exerciseID int64, caller
 	return s.repo.AddExerciseMedia(ctx, exerciseID, media)
 }
 
-func (s *Service) GetExerciseMedia(ctx context.Context, exerciseID int64, callerUserID int64) ([]domain.ExerciseMedia, error) {
+func (s *Service) GetExerciseMedia(ctx context.Context, exerciseID int64, callerUserID string) ([]domain.ExerciseMedia, error) {
 	return s.repo.GetExerciseMedia(ctx, exerciseID, callerUserID)
 }
 
-func (s *Service) ListExercises(ctx context.Context, userID int64) ([]domain.ExerciseModel, error) {
+func (s *Service) ListExercises(ctx context.Context, userID string) ([]domain.ExerciseModel, error) {
 	return s.repo.ListExercises(ctx, userID)
 }
 
-func (s *Service) GetExerciseById(ctx context.Context, id int64, callerUserID int64) (*domain.ExerciseModel, error) {
+func (s *Service) GetExerciseById(ctx context.Context, id int64, callerUserID string) (*domain.ExerciseModel, error) {
 	return s.repo.GetExerciseById(ctx, id, callerUserID)
 }
 
-func (s *Service) UpdateExercise(ctx context.Context, callerUserID int64, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
+func (s *Service) UpdateExercise(ctx context.Context, callerUserID string, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
 	return s.repo.UpdateExercise(ctx, callerUserID, exercise)
 }
 
-func (s *Service) DeleteExercise(ctx context.Context, callerUserID int64, id int64) error {
+func (s *Service) DeleteExercise(ctx context.Context, callerUserID string, id int64) error {
 	return s.repo.DeleteExercise(ctx, callerUserID, id)
 }
 

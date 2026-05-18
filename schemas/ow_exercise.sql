@@ -11,7 +11,7 @@ create table exercises
     primary_muscle    text,
     secondary_muscles text[],
     description       text,
-    user_id           bigint,
+    user_id           text,
     is_private        boolean,
     weight_direction  bigint
 );

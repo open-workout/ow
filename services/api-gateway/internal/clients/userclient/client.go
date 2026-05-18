@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -22,7 +23,7 @@ type Split struct {
 }
 
 type User struct {
-	UserID        int64    `json:"user_id"`
+	UserID        string   `json:"user_id"`
 	Email         string   `json:"email"`
 	SportGoals    []string `json:"sport_goals"`
 	Gender        string   `json:"gender"`
@@ -42,8 +43,9 @@ func New(baseURL string) *Client {
 	}
 }
 
-func (c *Client) GetUser(ctx context.Context, id int64) (*User, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/users/%d", c.baseURL, id), nil)
+func (c *Client) GetUser(ctx context.Context, id string) (*User, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		fmt.Sprintf("%s/users/%s", c.baseURL, url.PathEscape(id)), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +71,7 @@ func (c *Client) GetUser(ctx context.Context, id int64) (*User, error) {
 	return &user, nil
 }
 
-func (c *Client) CreateUser(ctx context.Context, user User) (*User, error) {
+func (c *Client) CreateUser(ctx context.Context, callerUserID string, user User) (*User, error) {
 	body, err := json.Marshal(user)
 	if err != nil {
 		return nil, err
@@ -80,6 +82,7 @@ func (c *Client) CreateUser(ctx context.Context, user User) (*User, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-User-ID", callerUserID)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -98,19 +101,19 @@ func (c *Client) CreateUser(ctx context.Context, user User) (*User, error) {
 	return &created, nil
 }
 
-func (c *Client) UpdateUser(ctx context.Context, callerUserID, id int64, user User) (*User, error) {
+func (c *Client) UpdateUser(ctx context.Context, callerUserID, id string, user User) (*User, error) {
 	body, err := json.Marshal(user)
 	if err != nil {
 		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut,
-		fmt.Sprintf("%s/users/%d", c.baseURL, id), bytes.NewReader(body))
+		fmt.Sprintf("%s/users/%s", c.baseURL, url.PathEscape(id)), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", fmt.Sprintf("%d", callerUserID))
+	req.Header.Set("X-User-ID", callerUserID)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -135,13 +138,13 @@ func (c *Client) UpdateUser(ctx context.Context, callerUserID, id int64, user Us
 	return &updated, nil
 }
 
-func (c *Client) DeleteUser(ctx context.Context, callerUserID, id int64) error {
+func (c *Client) DeleteUser(ctx context.Context, callerUserID, id string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete,
-		fmt.Sprintf("%s/users/%d", c.baseURL, id), nil)
+		fmt.Sprintf("%s/users/%s", c.baseURL, url.PathEscape(id)), nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("X-User-ID", fmt.Sprintf("%d", callerUserID))
+	req.Header.Set("X-User-ID", callerUserID)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -161,19 +164,19 @@ func (c *Client) DeleteUser(ctx context.Context, callerUserID, id int64) error {
 	return nil
 }
 
-func (c *Client) UpdateSplit(ctx context.Context, callerUserID, id int64, split Split) (*User, error) {
+func (c *Client) UpdateSplit(ctx context.Context, callerUserID, id string, split Split) (*User, error) {
 	body, err := json.Marshal(split)
 	if err != nil {
 		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut,
-		fmt.Sprintf("%s/users/%d/split", c.baseURL, id), bytes.NewReader(body))
+		fmt.Sprintf("%s/users/%s/split", c.baseURL, url.PathEscape(id)), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", fmt.Sprintf("%d", callerUserID))
+	req.Header.Set("X-User-ID", callerUserID)
 
 	resp, err := c.http.Do(req)
 	if err != nil {

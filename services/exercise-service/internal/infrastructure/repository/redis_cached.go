@@ -31,7 +31,7 @@ func (r *RedisCachedRepository) AddExerciseMedia(ctx context.Context, exerciseID
 	return r.repo.AddExerciseMedia(ctx, exerciseID, media)
 }
 
-func (r *RedisCachedRepository) GetExerciseMedia(ctx context.Context, exerciseID int64, callerUserID int64) ([]domain.ExerciseMedia, error) {
+func (r *RedisCachedRepository) GetExerciseMedia(ctx context.Context, exerciseID int64, callerUserID string) ([]domain.ExerciseMedia, error) {
 	return r.repo.GetExerciseMedia(ctx, exerciseID, callerUserID)
 }
 
@@ -64,46 +64,16 @@ func (r *RedisCachedRepository) ListPublicExercises(ctx context.Context) ([]doma
 	return exercises, nil
 }
 
-func (r *RedisCachedRepository) ListUserExercises(ctx context.Context, userID int64) ([]domain.ExerciseModel, error) {
+func (r *RedisCachedRepository) ListUserExercises(ctx context.Context, userID string) ([]domain.ExerciseModel, error) {
 	return r.repo.ListUserExercises(ctx, userID)
 }
 
-func (r *RedisCachedRepository) GetExerciseById(ctx context.Context, id int64, callerUserID int64) (*domain.ExerciseModel, error) {
-	// Only cache when callerUserID == 0 (admin/unrestricted). For regular callers
-	// the result depends on ownership (private visibility), so always hit the DB.
-	if callerUserID != 0 {
-		return r.repo.GetExerciseById(ctx, id, callerUserID)
-	}
-
-	cacheKey := fmt.Sprintf("exercise:%d", id)
-
-	cached, err := r.redis.Get(ctx, cacheKey).Result()
-
-	if err == nil {
-		var ex domain.ExerciseModel
-		if json.Unmarshal([]byte(cached), &ex) == nil {
-			return &ex, nil
-		}
-	}
-
-	if err != nil && !errors.Is(err, redis.Nil) {
-		return nil, err
-	}
-
-	ex, err := r.repo.GetExerciseById(ctx, id, callerUserID)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := json.Marshal(ex)
-	if err == nil {
-		_ = r.redis.Set(ctx, cacheKey, data, 10*time.Minute).Err()
-	}
-
-	return ex, nil
+// GetExerciseById always hits the DB since visibility depends on the caller's identity.
+func (r *RedisCachedRepository) GetExerciseById(ctx context.Context, id int64, callerUserID string) (*domain.ExerciseModel, error) {
+	return r.repo.GetExerciseById(ctx, id, callerUserID)
 }
 
-func (r *RedisCachedRepository) UpdateExercise(ctx context.Context, callerUserID int64, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
+func (r *RedisCachedRepository) UpdateExercise(ctx context.Context, callerUserID string, exercise *domain.ExerciseModel) (*domain.ExerciseModel, error) {
 	updated, err := r.repo.UpdateExercise(ctx, callerUserID, exercise)
 	if err != nil {
 		return nil, err
@@ -118,7 +88,7 @@ func (r *RedisCachedRepository) UpdateExercise(ctx context.Context, callerUserID
 	return updated, nil
 }
 
-func (r *RedisCachedRepository) DeleteExercise(ctx context.Context, callerUserID int64, id int64) error {
+func (r *RedisCachedRepository) DeleteExercise(ctx context.Context, callerUserID string, id int64) error {
 	if err := r.repo.DeleteExercise(ctx, callerUserID, id); err != nil {
 		return err
 	}
@@ -128,7 +98,7 @@ func (r *RedisCachedRepository) DeleteExercise(ctx context.Context, callerUserID
 	return nil
 }
 
-func (r *RedisCachedRepository) ListExercises(ctx context.Context, userID int64) ([]domain.ExerciseModel, error) {
+func (r *RedisCachedRepository) ListExercises(ctx context.Context, userID string) ([]domain.ExerciseModel, error) {
 	public, err := r.ListPublicExercises(ctx)
 	if err != nil {
 		return nil, err

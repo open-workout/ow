@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	_ "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/open-workout/ow/services/api-gateway/internal/config"
 	"github.com/open-workout/ow/services/api-gateway/internal/transport/http/handlers"
@@ -20,7 +19,6 @@ type Router struct {
 	workoutHandler  *handlers.WorkoutHandler
 	userHandler     *handlers.UserHandler
 	exerciseHandler *handlers.ExerciseHandler
-	authHandler     *handlers.AuthHandler
 }
 
 func NewRouter(
@@ -29,7 +27,6 @@ func NewRouter(
 	workoutHandler *handlers.WorkoutHandler,
 	userHandler *handlers.UserHandler,
 	exerciseHandler *handlers.ExerciseHandler,
-	authHandler *handlers.AuthHandler,
 ) http.Handler {
 
 	r := chi.NewRouter()
@@ -40,7 +37,6 @@ func NewRouter(
 		workoutHandler:  workoutHandler,
 		userHandler:     userHandler,
 		exerciseHandler: exerciseHandler,
-		authHandler:     authHandler,
 	}
 
 	router.register(r)
@@ -69,18 +65,11 @@ func (rt *Router) register(r chi.Router) {
 	r.Get("/health", rt.healthHandler.Check)
 
 	// =====================
-	// Auth
-	// =====================
-	r.Post("/auth/login", rt.authHandler.Login)
-	r.Post("/auth/refresh", rt.authHandler.Refresh)
-	r.Post("/auth/logout", rt.authHandler.Logout)
-
-	// =====================
 	// Users
 	// =====================
-	r.Post("/users", rt.userHandler.CreateUser)
 	r.Route("/users", func(r chi.Router) {
-		r.Use(appmw.Auth(rt.cfg.JWTSecret))
+		r.Use(appmw.Auth(rt.cfg.Auth0IssuerURL, rt.cfg.Auth0Audience))
+		r.Post("/", rt.userHandler.CreateUser)
 		r.Get("/{id}", rt.userHandler.GetUser)
 		r.Put("/{id}", rt.userHandler.UpdateUser)
 		r.Delete("/{id}", rt.userHandler.DeleteUser)
@@ -91,7 +80,7 @@ func (rt *Router) register(r chi.Router) {
 	// Exercises
 	// =====================
 	r.Route("/exercises", func(r chi.Router) {
-		r.Use(appmw.Auth(rt.cfg.JWTSecret))
+		r.Use(appmw.Auth(rt.cfg.Auth0IssuerURL, rt.cfg.Auth0Audience))
 		r.Get("/", rt.exerciseHandler.ListExercises)
 		r.Post("/", rt.exerciseHandler.CreateExercise)
 		r.Post("/recommendations", rt.exerciseHandler.GetTopExercises)
@@ -104,13 +93,13 @@ func (rt *Router) register(r chi.Router) {
 	// Workouts & Sets
 	// =====================
 	r.Route("/workouts", func(r chi.Router) {
-		r.Use(appmw.Auth(rt.cfg.JWTSecret))
+		r.Use(appmw.Auth(rt.cfg.Auth0IssuerURL, rt.cfg.Auth0Audience))
 		r.Get("/{workout_id}", rt.workoutHandler.GetWorkout)
 		r.Get("/{workout_id}/sets", rt.workoutHandler.GetSets)
 	})
 
 	r.Route("/sets", func(r chi.Router) {
-		r.Use(appmw.Auth(rt.cfg.JWTSecret))
+		r.Use(appmw.Auth(rt.cfg.Auth0IssuerURL, rt.cfg.Auth0Audience))
 		r.Put("/{set_id}", rt.workoutHandler.UpdateSet)
 		r.Delete("/{set_id}", rt.workoutHandler.DeleteSet)
 	})

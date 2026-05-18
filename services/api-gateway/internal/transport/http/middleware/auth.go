@@ -3,75 +3,58 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"strings"
+	"net/url"
+	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
+	"github.com/auth0/go-jwt-middleware/v2/jwks"
+	"github.com/auth0/go-jwt-middleware/v2/validator"
 )
 
 type contextKey string
 
-const (
-	UserIDKey   contextKey = "user_id"
-	UserRoleKey contextKey = "user_role"
-)
+const UserIDKey contextKey = "user_id"
 
-type claims struct {
-	Role string `json:"role"`
-	jwt.RegisteredClaims
-}
+func Auth(issuerURL, audience string) func(http.Handler) http.Handler {
+	parsed, err := url.Parse(issuerURL)
+	if err != nil {
+		panic("auth middleware: invalid issuer URL: " + err.Error())
+	}
 
-func Auth(jwtSecret string) func(http.Handler) http.Handler {
-	key := []byte(jwtSecret)
+	provider := jwks.NewCachingProvider(parsed, 5*time.Minute)
+
+	jwtValidator, err := validator.New(
+		provider.KeyFunc,
+		validator.RS256,
+		issuerURL,
+		[]string{audience},
+	)
+	if err != nil {
+		panic("auth middleware: failed to create JWT validator: " + err.Error())
+	}
+
+	m := jwtmiddleware.New(
+		jwtValidator.ValidateToken,
+		jwtmiddleware.WithErrorHandler(func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		}),
+	)
+
 	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				http.Error(w, "missing authorization header", http.StatusUnauthorized)
-				return
-			}
-
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				http.Error(w, "invalid authorization header", http.StatusUnauthorized)
-				return
-			}
-
-			var c claims
-			token, err := jwt.ParseWithClaims(parts[1], &c, func(t *jwt.Token) (any, error) {
-				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, jwt.ErrSignatureInvalid
-				}
-				return key, nil
-			})
-			if err != nil || !token.Valid {
+		return m.CheckJWT(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, ok := r.Context().Value(jwtmiddleware.ContextKey{}).(*validator.ValidatedClaims)
+			if !ok || claims.RegisteredClaims.Subject == "" {
 				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
 			}
-
-			userID, err := c.GetSubject()
-			if err != nil || userID == "" {
-				http.Error(w, "invalid token", http.StatusUnauthorized)
-				return
-			}
-
-			ctx := context.WithValue(r.Context(), UserIDKey, userID)
-			ctx = context.WithValue(ctx, UserRoleKey, c.Role)
+			ctx := context.WithValue(r.Context(), UserIDKey, claims.RegisteredClaims.Subject)
 			next.ServeHTTP(w, r.WithContext(ctx))
-		}
-		return http.HandlerFunc(fn)
+		}))
 	}
 }
 
 func GetUserID(r *http.Request) string {
 	val := r.Context().Value(UserIDKey)
-	if val == nil {
-		return ""
-	}
-	return val.(string)
-}
-
-func GetUserRole(r *http.Request) string {
-	val := r.Context().Value(UserRoleKey)
 	if val == nil {
 		return ""
 	}
