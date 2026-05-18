@@ -9,3 +9,7 @@ bin/
 /apps/mobile/expo-env.d.ts
 .aidesigner/*
 !.aidesigner/.gitkeep
+
+.claude
+.aidesigner
+.agents
