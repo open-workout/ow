@@ -37,9 +37,9 @@ func (h *ExerciseHandler) CreateExercise(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *ExerciseHandler) ListExercises(w http.ResponseWriter, r *http.Request) {
-	userID, err := strconv.ParseInt(r.URL.Query().Get("user_id"), 10, 64)
-	if err != nil {
-		http.Error(w, "invalid user_id", http.StatusBadRequest)
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		http.Error(w, "missing user_id query param", http.StatusBadRequest)
 		return
 	}
 
@@ -55,7 +55,7 @@ func (h *ExerciseHandler) ListExercises(w http.ResponseWriter, r *http.Request) 
 
 type getTopRequest struct {
 	Muscles map[string]float64 `json:"muscles"`
-	UserID  int64              `json:"user_id"`
+	UserID  string             `json:"user_id"`
 	Limit   int                `json:"limit"`
 }
 
@@ -84,9 +84,9 @@ func (h *ExerciseHandler) GetExerciseById(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	callerUserID, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
-	if err != nil {
-		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+	callerUserID := r.Header.Get("X-User-ID")
+	if callerUserID == "" {
+		http.Error(w, "missing X-User-ID header", http.StatusUnauthorized)
 		return
 	}
 
@@ -111,9 +111,9 @@ func (h *ExerciseHandler) UpdateExercise(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	callerUserID, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
-	if err != nil {
-		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+	callerUserID := r.Header.Get("X-User-ID")
+	if callerUserID == "" {
+		http.Error(w, "missing X-User-ID header", http.StatusUnauthorized)
 		return
 	}
 
@@ -145,9 +145,9 @@ func (h *ExerciseHandler) DeleteExercise(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	callerUserID, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
-	if err != nil {
-		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+	callerUserID := r.Header.Get("X-User-ID")
+	if callerUserID == "" {
+		http.Error(w, "missing X-User-ID header", http.StatusUnauthorized)
 		return
 	}
 
@@ -180,9 +180,9 @@ func (h *ExerciseHandler) AddExerciseMedia(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	callerUserID, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
-	if err != nil {
-		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+	callerUserID := r.Header.Get("X-User-ID")
+	if callerUserID == "" {
+		http.Error(w, "missing X-User-ID header", http.StatusUnauthorized)
 		return
 	}
 
@@ -236,9 +236,9 @@ func (h *ExerciseHandler) GetExerciseMedia(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	callerUserID, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
-	if err != nil {
-		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+	callerUserID := r.Header.Get("X-User-ID")
+	if callerUserID == "" {
+		http.Error(w, "missing X-User-ID header", http.StatusUnauthorized)
 		return
 	}
 

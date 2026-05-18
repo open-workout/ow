@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/open-workout/ow/services/api-gateway/internal/clients/userclient"
+	appmw "github.com/open-workout/ow/services/api-gateway/internal/transport/http/middleware"
 )
 
 type UserHandler struct {
@@ -19,13 +19,15 @@ func NewUserHandler(client *userclient.Client) *UserHandler {
 }
 
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	callerID := appmw.GetUserID(r)
+
 	var user userclient.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	created, err := h.client.CreateUser(r.Context(), user)
+	created, err := h.client.CreateUser(r.Context(), callerID, user)
 	if err != nil {
 		http.Error(w, "failed to create user", http.StatusBadGateway)
 		return
@@ -37,12 +39,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		http.Error(w, "invalid user id", http.StatusBadRequest)
-		return
-	}
+	id := chi.URLParam(r, "id")
 
 	user, err := h.client.GetUser(r.Context(), id)
 	if err != nil {
@@ -59,17 +56,8 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		http.Error(w, "invalid user id", http.StatusBadRequest)
-		return
-	}
-
-	callerID, err := effectiveUserID(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	id := chi.URLParam(r, "id")
+	callerID := appmw.GetUserID(r)
 
 	var user userclient.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -92,17 +80,8 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		http.Error(w, "invalid user id", http.StatusBadRequest)
-		return
-	}
-
-	callerID, err := effectiveUserID(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	id := chi.URLParam(r, "id")
+	callerID := appmw.GetUserID(r)
 
 	if err := h.client.DeleteUser(r.Context(), callerID, id); err != nil {
 		if errors.Is(err, userclient.ErrNotFound) {
@@ -117,17 +96,8 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) UpdateSplit(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		http.Error(w, "invalid user id", http.StatusBadRequest)
-		return
-	}
-
-	callerID, err := effectiveUserID(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	id := chi.URLParam(r, "id")
+	callerID := appmw.GetUserID(r)
 
 	var split userclient.Split
 	if err := json.NewDecoder(r.Body).Decode(&split); err != nil {

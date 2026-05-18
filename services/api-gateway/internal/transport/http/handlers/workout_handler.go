@@ -19,21 +19,12 @@ func NewWorkoutHandler(client *workoutclient.Client) *WorkoutHandler {
 	return &WorkoutHandler{client: client}
 }
 
-// effectiveUserID returns 0 for admin callers (workout service treats 0 as bypass),
-// or the caller's own user ID for regular users.
-func effectiveUserID(r *http.Request) (int64, error) {
-	if appmw.GetUserRole(r) == "admin" {
-		return 0, nil
-	}
-	return strconv.ParseInt(appmw.GetUserID(r), 10, 64)
+func effectiveUserID(r *http.Request) string {
+	return appmw.GetUserID(r)
 }
 
 func (h *WorkoutHandler) GetWorkout(w http.ResponseWriter, r *http.Request) {
-	userID, err := effectiveUserID(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	userID := effectiveUserID(r)
 
 	workoutID, err := strconv.ParseInt(chi.URLParam(r, "workout_id"), 10, 64)
 	if err != nil {
@@ -56,11 +47,7 @@ func (h *WorkoutHandler) GetWorkout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkoutHandler) GetSets(w http.ResponseWriter, r *http.Request) {
-	userID, err := effectiveUserID(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	userID := effectiveUserID(r)
 
 	workoutID, err := strconv.ParseInt(chi.URLParam(r, "workout_id"), 10, 64)
 	if err != nil {
@@ -83,11 +70,7 @@ func (h *WorkoutHandler) GetSets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkoutHandler) UpdateSet(w http.ResponseWriter, r *http.Request) {
-	userID, err := effectiveUserID(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	userID := effectiveUserID(r)
 
 	setID, err := strconv.ParseInt(chi.URLParam(r, "set_id"), 10, 64)
 	if err != nil {
@@ -117,11 +100,7 @@ func (h *WorkoutHandler) UpdateSet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkoutHandler) DeleteSet(w http.ResponseWriter, r *http.Request) {
-	userID, err := effectiveUserID(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	userID := effectiveUserID(r)
 
 	setID, err := strconv.ParseInt(chi.URLParam(r, "set_id"), 10, 64)
 	if err != nil {

@@ -50,7 +50,6 @@ func setupPostgres(t *testing.T) (*sql.DB, func()) {
 		t.Fatalf("failed to open db: %v", err)
 	}
 
-	// wait for db readiness
 	for i := 0; i < 10; i++ {
 		if err := db.Ping(); err == nil {
 			break
@@ -65,6 +64,7 @@ func setupPostgres(t *testing.T) (*sql.DB, func()) {
 
 	return db, cleanup
 }
+
 func setupSchema(t *testing.T, db *sql.DB) {
 	schema := `
 	CREATE TABLE exercises (
@@ -74,7 +74,7 @@ func setupSchema(t *testing.T, db *sql.DB) {
 		primary_muscle TEXT,
 		secondary_muscles TEXT[],
 		description TEXT,
-		user_id BIGINT,
+		user_id TEXT,
 		is_private BOOLEAN,
 		weight_direction BIGINT
 	);
@@ -82,7 +82,7 @@ func setupSchema(t *testing.T, db *sql.DB) {
 	CREATE TABLE exercise_media (
 		exercise_id BIGINT,
 		url TEXT,
-		user_id BIGINT
+		user_id TEXT
 	);
 	`
 
@@ -91,6 +91,10 @@ func setupSchema(t *testing.T, db *sql.DB) {
 		t.Fatalf("failed to create schema: %v", err)
 	}
 }
+
+const pgTestUser1 = "auth0|user-1"
+const pgTestUser2 = "auth0|user-2"
+const pgTestUser99 = "auth0|user-99"
 
 func TestSqlRepository_CreateExercise(t *testing.T) {
 	db, cleanup := setupPostgres(t)
@@ -106,7 +110,7 @@ func TestSqlRepository_CreateExercise(t *testing.T) {
 		PrimaryMuscle:    "back",
 		SecondaryMuscles: []string{"biceps"},
 		Description:      "pull movement",
-		UserID:           1,
+		UserID:           pgTestUser1,
 		IsPrivate:        false,
 		WeightDirection:  1,
 	}
@@ -141,7 +145,7 @@ func TestSqlRepository_AddExerciseMedia(t *testing.T) {
 		PrimaryMuscle:    "back",
 		SecondaryMuscles: []string{"biceps"},
 		Description:      "pull movement",
-		UserID:           1,
+		UserID:           pgTestUser1,
 		IsPrivate:        false,
 		WeightDirection:  1,
 	}
@@ -155,7 +159,7 @@ func TestSqlRepository_AddExerciseMedia(t *testing.T) {
 	media := &domain.ExerciseMedia{
 		ExerciseID: result.ExerciseID,
 		URL:        "http://image.com/squat.png",
-		UserID:     1,
+		UserID:     pgTestUser1,
 	}
 
 	err = repo.AddExerciseMedia(context.Background(), result.ExerciseID, media)
@@ -175,7 +179,6 @@ func TestSqlRepository_AddExerciseMedia(t *testing.T) {
 	if url != "http://image.com/squat.png" {
 		t.Errorf("expected url http://image.com/squat.png, got %s", url)
 	}
-
 }
 
 func TestSqlRepository_CreateExercise_Integration(t *testing.T) {
@@ -192,7 +195,7 @@ func TestSqlRepository_CreateExercise_Integration(t *testing.T) {
 		PrimaryMuscle:    "chest",
 		SecondaryMuscles: []string{"triceps"},
 		Description:      "basic push movement",
-		UserID:           1,
+		UserID:           pgTestUser1,
 		IsPrivate:        false,
 		WeightDirection:  1,
 	}
@@ -219,7 +222,7 @@ func TestSqlRepository_GetUserExercises(t *testing.T) {
 		PrimaryMuscle:    "chest",
 		SecondaryMuscles: []string{"triceps"},
 		Description:      "basic push movement",
-		UserID:           1,
+		UserID:           pgTestUser1,
 		IsPrivate:        true,
 		WeightDirection:  1,
 	}
@@ -234,7 +237,7 @@ func TestSqlRepository_GetUserExercises(t *testing.T) {
 		PrimaryMuscle:    "chest",
 		SecondaryMuscles: []string{"triceps", "shoulders"},
 		Description:      "basic push movement",
-		UserID:           2,
+		UserID:           pgTestUser2,
 		IsPrivate:        false,
 		WeightDirection:  1,
 	}
@@ -256,7 +259,6 @@ func TestSqlRepository_GetUserExercises(t *testing.T) {
 	if exercisesOfUser1[0].ExerciseID != 1 {
 		t.Fatalf("expected exercise %v for user 1, but got %v", ex1.ExerciseID, exercisesOfUser1[0].ExerciseID)
 	}
-
 }
 
 func TestSqlRepository_UpdateExercise(t *testing.T) {
@@ -271,7 +273,7 @@ func TestSqlRepository_UpdateExercise(t *testing.T) {
 		PrimaryMuscle:    "back",
 		SecondaryMuscles: []string{"biceps"},
 		Description:      "pull movement",
-		UserID:           1,
+		UserID:           pgTestUser1,
 		IsPrivate:        false,
 		WeightDirection:  1,
 	})
@@ -282,7 +284,7 @@ func TestSqlRepository_UpdateExercise(t *testing.T) {
 	created.Name = "Chin Up"
 	created.IsPrivate = true
 
-	updated, err := repo.UpdateExercise(context.Background(), 1, created)
+	updated, err := repo.UpdateExercise(context.Background(), pgTestUser1, created)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -293,8 +295,8 @@ func TestSqlRepository_UpdateExercise(t *testing.T) {
 	if !updated.IsPrivate {
 		t.Errorf("expected IsPrivate=true")
 	}
-	if updated.UserID != 1 {
-		t.Errorf("expected UserID=1, got %d", updated.UserID)
+	if updated.UserID != pgTestUser1 {
+		t.Errorf("expected UserID=%s, got %s", pgTestUser1, updated.UserID)
 	}
 }
 
@@ -304,7 +306,7 @@ func TestSqlRepository_UpdateExercise_NotFound(t *testing.T) {
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	_, err := repo.UpdateExercise(context.Background(), 1, &domain.ExerciseModel{ExerciseID: 999, Name: "Ghost"})
+	_, err := repo.UpdateExercise(context.Background(), pgTestUser1, &domain.ExerciseModel{ExerciseID: 999, Name: "Ghost"})
 	if err == nil {
 		t.Fatal("expected error for missing exercise, got nil")
 	}
@@ -317,10 +319,10 @@ func TestSqlRepository_UpdateExercise_WrongUser(t *testing.T) {
 	repo := repository.NewSqlRepository(db)
 
 	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Pull Up", UserID: 1, IsPrivate: false,
+		Name: "Pull Up", UserID: pgTestUser1, IsPrivate: false,
 	})
 
-	_, err := repo.UpdateExercise(context.Background(), 99, &domain.ExerciseModel{
+	_, err := repo.UpdateExercise(context.Background(), pgTestUser99, &domain.ExerciseModel{
 		ExerciseID: created.ExerciseID, Name: "Hacked",
 	})
 	if err == nil {
@@ -334,27 +336,6 @@ func TestSqlRepository_UpdateExercise_WrongUser(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_UpdateExercise_AdminBypass(t *testing.T) {
-	db, cleanup := setupPostgres(t)
-	defer cleanup()
-	setupSchema(t, db)
-	repo := repository.NewSqlRepository(db)
-
-	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Pull Up", UserID: 1, IsPrivate: false,
-	})
-
-	updated, err := repo.UpdateExercise(context.Background(), 0, &domain.ExerciseModel{
-		ExerciseID: created.ExerciseID, Name: "Admin Updated",
-	})
-	if err != nil {
-		t.Fatalf("admin should be able to update any exercise: %v", err)
-	}
-	if updated.Name != "Admin Updated" {
-		t.Errorf("expected name 'Admin Updated', got %s", updated.Name)
-	}
-}
-
 func TestSqlRepository_DeleteExercise(t *testing.T) {
 	db, cleanup := setupPostgres(t)
 	defer cleanup()
@@ -363,14 +344,14 @@ func TestSqlRepository_DeleteExercise(t *testing.T) {
 
 	created, err := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
 		Name:      "Squat",
-		UserID:    1,
+		UserID:    pgTestUser1,
 		IsPrivate: false,
 	})
 	if err != nil {
 		t.Fatalf("failed to create exercise: %v", err)
 	}
 
-	if err := repo.DeleteExercise(context.Background(), 1, created.ExerciseID); err != nil {
+	if err := repo.DeleteExercise(context.Background(), pgTestUser1, created.ExerciseID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -390,7 +371,7 @@ func TestSqlRepository_DeleteExercise_NotFound(t *testing.T) {
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	err := repo.DeleteExercise(context.Background(), 1, 999)
+	err := repo.DeleteExercise(context.Background(), pgTestUser1, 999)
 	if err == nil {
 		t.Fatal("expected error for missing exercise, got nil")
 	}
@@ -403,10 +384,10 @@ func TestSqlRepository_DeleteExercise_WrongUser(t *testing.T) {
 	repo := repository.NewSqlRepository(db)
 
 	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Squat", UserID: 1, IsPrivate: false,
+		Name: "Squat", UserID: pgTestUser1, IsPrivate: false,
 	})
 
-	err := repo.DeleteExercise(context.Background(), 99, created.ExerciseID)
+	err := repo.DeleteExercise(context.Background(), pgTestUser99, created.ExerciseID)
 	if err == nil {
 		t.Fatal("expected error when deleting with wrong user, got nil")
 	}
@@ -418,27 +399,6 @@ func TestSqlRepository_DeleteExercise_WrongUser(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_DeleteExercise_AdminBypass(t *testing.T) {
-	db, cleanup := setupPostgres(t)
-	defer cleanup()
-	setupSchema(t, db)
-	repo := repository.NewSqlRepository(db)
-
-	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Squat", UserID: 1, IsPrivate: false,
-	})
-
-	if err := repo.DeleteExercise(context.Background(), 0, created.ExerciseID); err != nil {
-		t.Fatalf("admin should be able to delete any exercise: %v", err)
-	}
-
-	var count int
-	db.QueryRow(`SELECT COUNT(*) FROM exercises WHERE exercise_id = $1`, created.ExerciseID).Scan(&count)
-	if count != 0 {
-		t.Fatal("exercise should be deleted")
-	}
-}
-
 func TestSqlRepository_GetExerciseById_Public(t *testing.T) {
 	db, cleanup := setupPostgres(t)
 	defer cleanup()
@@ -446,14 +406,13 @@ func TestSqlRepository_GetExerciseById_Public(t *testing.T) {
 	repo := repository.NewSqlRepository(db)
 
 	created, err := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Deadlift", UserID: 1, IsPrivate: false,
+		Name: "Deadlift", UserID: pgTestUser1, IsPrivate: false,
 	})
 	if err != nil {
 		t.Fatalf("failed to create exercise: %v", err)
 	}
 
-	// Any caller can fetch a public exercise.
-	result, err := repo.GetExerciseById(context.Background(), created.ExerciseID, 99)
+	result, err := repo.GetExerciseById(context.Background(), created.ExerciseID, pgTestUser99)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -469,10 +428,10 @@ func TestSqlRepository_GetExerciseById_Private_Owner(t *testing.T) {
 	repo := repository.NewSqlRepository(db)
 
 	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Secret Move", UserID: 1, IsPrivate: true,
+		Name: "Secret Move", UserID: pgTestUser1, IsPrivate: true,
 	})
 
-	result, err := repo.GetExerciseById(context.Background(), created.ExerciseID, 1)
+	result, err := repo.GetExerciseById(context.Background(), created.ExerciseID, pgTestUser1)
 	if err != nil {
 		t.Fatalf("owner should be able to get their private exercise: %v", err)
 	}
@@ -488,31 +447,12 @@ func TestSqlRepository_GetExerciseById_Private_WrongUser(t *testing.T) {
 	repo := repository.NewSqlRepository(db)
 
 	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Secret Move", UserID: 1, IsPrivate: true,
+		Name: "Secret Move", UserID: pgTestUser1, IsPrivate: true,
 	})
 
-	_, err := repo.GetExerciseById(context.Background(), created.ExerciseID, 99)
+	_, err := repo.GetExerciseById(context.Background(), created.ExerciseID, pgTestUser99)
 	if err == nil {
 		t.Fatal("expected error for private exercise accessed by wrong user, got nil")
-	}
-}
-
-func TestSqlRepository_GetExerciseById_Private_AdminBypass(t *testing.T) {
-	db, cleanup := setupPostgres(t)
-	defer cleanup()
-	setupSchema(t, db)
-	repo := repository.NewSqlRepository(db)
-
-	created, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Secret Move", UserID: 1, IsPrivate: true,
-	})
-
-	result, err := repo.GetExerciseById(context.Background(), created.ExerciseID, 0)
-	if err != nil {
-		t.Fatalf("admin (userId=0) should bypass private check: %v", err)
-	}
-	if result.ExerciseID != created.ExerciseID {
-		t.Errorf("expected ID %d, got %d", created.ExerciseID, result.ExerciseID)
 	}
 }
 
@@ -522,7 +462,7 @@ func TestSqlRepository_GetExerciseById_NotFound(t *testing.T) {
 	setupSchema(t, db)
 	repo := repository.NewSqlRepository(db)
 
-	_, err := repo.GetExerciseById(context.Background(), 999, 1)
+	_, err := repo.GetExerciseById(context.Background(), 999, pgTestUser1)
 	if err == nil {
 		t.Fatal("expected error for missing exercise, got nil")
 	}
@@ -535,17 +475,17 @@ func TestSqlRepository_GetExerciseMedia_ReturnsMedia(t *testing.T) {
 	repo := repository.NewSqlRepository(db)
 
 	ex, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Pull Up", UserID: 1, IsPrivate: false,
+		Name: "Pull Up", UserID: pgTestUser1, IsPrivate: false,
 	})
 
 	_ = repo.AddExerciseMedia(context.Background(), ex.ExerciseID, &domain.ExerciseMedia{
-		ExerciseID: ex.ExerciseID, URL: "http://example.com/1.jpg", UserID: 1,
+		ExerciseID: ex.ExerciseID, URL: "http://example.com/1.jpg", UserID: pgTestUser1,
 	})
 	_ = repo.AddExerciseMedia(context.Background(), ex.ExerciseID, &domain.ExerciseMedia{
-		ExerciseID: ex.ExerciseID, URL: "http://example.com/2.png", UserID: 1,
+		ExerciseID: ex.ExerciseID, URL: "http://example.com/2.png", UserID: pgTestUser1,
 	})
 
-	media, err := repo.GetExerciseMedia(context.Background(), ex.ExerciseID, 1)
+	media, err := repo.GetExerciseMedia(context.Background(), ex.ExerciseID, pgTestUser1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -566,13 +506,13 @@ func TestSqlRepository_GetExerciseMedia_PrivateExercise_Owner(t *testing.T) {
 	repo := repository.NewSqlRepository(db)
 
 	ex, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Secret Move", UserID: 1, IsPrivate: true,
+		Name: "Secret Move", UserID: pgTestUser1, IsPrivate: true,
 	})
 	_ = repo.AddExerciseMedia(context.Background(), ex.ExerciseID, &domain.ExerciseMedia{
-		ExerciseID: ex.ExerciseID, URL: "http://example.com/secret.jpg", UserID: 1,
+		ExerciseID: ex.ExerciseID, URL: "http://example.com/secret.jpg", UserID: pgTestUser1,
 	})
 
-	media, err := repo.GetExerciseMedia(context.Background(), ex.ExerciseID, 1)
+	media, err := repo.GetExerciseMedia(context.Background(), ex.ExerciseID, pgTestUser1)
 	if err != nil {
 		t.Fatalf("owner should see their private exercise media: %v", err)
 	}
@@ -588,40 +528,18 @@ func TestSqlRepository_GetExerciseMedia_PrivateExercise_WrongUser(t *testing.T) 
 	repo := repository.NewSqlRepository(db)
 
 	ex, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Secret Move", UserID: 1, IsPrivate: true,
+		Name: "Secret Move", UserID: pgTestUser1, IsPrivate: true,
 	})
 	_ = repo.AddExerciseMedia(context.Background(), ex.ExerciseID, &domain.ExerciseMedia{
-		ExerciseID: ex.ExerciseID, URL: "http://example.com/secret.jpg", UserID: 1,
+		ExerciseID: ex.ExerciseID, URL: "http://example.com/secret.jpg", UserID: pgTestUser1,
 	})
 
-	media, err := repo.GetExerciseMedia(context.Background(), ex.ExerciseID, 99)
+	media, err := repo.GetExerciseMedia(context.Background(), ex.ExerciseID, pgTestUser99)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(media) != 0 {
 		t.Errorf("expected 0 media items for wrong user on private exercise, got %d", len(media))
-	}
-}
-
-func TestSqlRepository_GetExerciseMedia_AdminBypass(t *testing.T) {
-	db, cleanup := setupPostgres(t)
-	defer cleanup()
-	setupSchema(t, db)
-	repo := repository.NewSqlRepository(db)
-
-	ex, _ := repo.CreateExercise(context.Background(), &domain.ExerciseModel{
-		Name: "Secret Move", UserID: 1, IsPrivate: true,
-	})
-	_ = repo.AddExerciseMedia(context.Background(), ex.ExerciseID, &domain.ExerciseMedia{
-		ExerciseID: ex.ExerciseID, URL: "http://example.com/secret.jpg", UserID: 1,
-	})
-
-	media, err := repo.GetExerciseMedia(context.Background(), ex.ExerciseID, 0)
-	if err != nil {
-		t.Fatalf("admin should see private exercise media: %v", err)
-	}
-	if len(media) != 1 {
-		t.Errorf("expected 1 media item for admin, got %d", len(media))
 	}
 }
 
@@ -636,7 +554,7 @@ func TestSqlRepository_GetPublicExercises(t *testing.T) {
 		PrimaryMuscle:    "chest",
 		SecondaryMuscles: []string{"triceps"},
 		Description:      "basic push movement",
-		UserID:           1,
+		UserID:           pgTestUser1,
 		IsPrivate:        true,
 	}
 
@@ -651,7 +569,7 @@ func TestSqlRepository_GetPublicExercises(t *testing.T) {
 		PrimaryMuscle:    "chest",
 		SecondaryMuscles: []string{"triceps", "shoulders"},
 		Description:      "basic push movement",
-		UserID:           1,
+		UserID:           pgTestUser1,
 		IsPrivate:        false,
 		WeightDirection:  1,
 	}
@@ -673,5 +591,4 @@ func TestSqlRepository_GetPublicExercises(t *testing.T) {
 	if publicExercises[0].ExerciseID != ex2.ExerciseID {
 		t.Fatalf("expected %v as public, got %d", ex2.ExerciseID, publicExercises[0].ExerciseID)
 	}
-
 }

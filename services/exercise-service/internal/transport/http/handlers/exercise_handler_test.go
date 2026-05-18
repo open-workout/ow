@@ -111,7 +111,7 @@ func setupServer(t *testing.T) (*server, func()) {
 }
 
 // createExercise inserts an exercise via the API and returns its ID.
-func createExercise(t *testing.T, s *server, userID int64, isPrivate bool) int64 {
+func createExercise(t *testing.T, s *server, userID string, isPrivate bool) int64 {
 	t.Helper()
 	body, _ := json.Marshal(map[string]any{
 		"name": "Test Exercise", "exercise_type": "compound",
@@ -121,7 +121,7 @@ func createExercise(t *testing.T, s *server, userID int64, isPrivate bool) int64
 	})
 	req, _ := http.NewRequest(http.MethodPost, s.ts.URL+"/exercises", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", fmt.Sprintf("%d", userID))
+	req.Header.Set("X-User-ID", fmt.Sprintf("%s", userID))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("create exercise: %v", err)
@@ -154,7 +154,7 @@ func TestAddExerciseMedia_Success(t *testing.T) {
 	s, cleanup := setupServer(t)
 	defer cleanup()
 
-	exerciseID := createExercise(t, s, 1, false)
+	exerciseID := createExercise(t, s, "1", false)
 
 	body, ct := multipartBody(t, "photo.jpg", "image/jpeg", []byte("fake-jpeg-data"))
 	req, _ := http.NewRequest(http.MethodPost,
@@ -193,7 +193,7 @@ func TestAddExerciseMedia_UnsupportedMIME(t *testing.T) {
 	s, cleanup := setupServer(t)
 	defer cleanup()
 
-	exerciseID := createExercise(t, s, 1, false)
+	exerciseID := createExercise(t, s, "1", false)
 
 	body, ct := multipartBody(t, "malware.exe", "application/octet-stream", []byte("not an image"))
 	req, _ := http.NewRequest(http.MethodPost,
@@ -223,7 +223,7 @@ func TestAddExerciseMedia_MissingAuthHeader(t *testing.T) {
 	s, cleanup := setupServer(t)
 	defer cleanup()
 
-	exerciseID := createExercise(t, s, 1, false)
+	exerciseID := createExercise(t, s, "1", false)
 
 	body, ct := multipartBody(t, "photo.jpg", "image/jpeg", []byte("data"))
 	req, _ := http.NewRequest(http.MethodPost,
@@ -247,7 +247,7 @@ func TestAddExerciseMedia_Forbidden(t *testing.T) {
 	defer cleanup()
 
 	// Exercise is owned by user 1
-	exerciseID := createExercise(t, s, 1, false)
+	exerciseID := createExercise(t, s, "1", false)
 
 	// User 2 tries to upload
 	body, ct := multipartBody(t, "photo.jpg", "image/jpeg", []byte("data"))
@@ -273,36 +273,11 @@ func TestAddExerciseMedia_Forbidden(t *testing.T) {
 	}
 }
 
-func TestAddExerciseMedia_AdminBypass(t *testing.T) {
-	s, cleanup := setupServer(t)
-	defer cleanup()
-
-	// Exercise owned by user 1
-	exerciseID := createExercise(t, s, 1, false)
-
-	// Admin (user 0) can upload to any exercise
-	body, ct := multipartBody(t, "photo.png", "image/png", []byte("data"))
-	req, _ := http.NewRequest(http.MethodPost,
-		fmt.Sprintf("%s/exercises/%d/media", s.ts.URL, exerciseID), body)
-	req.Header.Set("Content-Type", ct)
-	req.Header.Set("X-User-ID", "0")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request failed: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusNoContent {
-		t.Errorf("expected 204 for admin upload, got %d", resp.StatusCode)
-	}
-}
-
 func TestGetExerciseMedia_ReturnsUploadedURLs(t *testing.T) {
 	s, cleanup := setupServer(t)
 	defer cleanup()
 
-	exerciseID := createExercise(t, s, 1, false)
+	exerciseID := createExercise(t, s, "1", false)
 
 	// Upload two files
 	for _, name := range []string{"a.jpg", "b.png"} {
@@ -352,7 +327,7 @@ func TestGetExerciseMedia_PrivateExercise_WrongUser(t *testing.T) {
 	defer cleanup()
 
 	// Private exercise owned by user 1
-	exerciseID := createExercise(t, s, 1, true)
+	exerciseID := createExercise(t, s, "1", true)
 
 	// Upload as owner
 	body, ct := multipartBody(t, "photo.jpg", "image/jpeg", []byte("data"))

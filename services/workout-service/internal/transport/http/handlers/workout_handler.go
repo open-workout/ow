@@ -19,9 +19,9 @@ func NewWorkoutHandler(svc domain.WorkoutService) *WorkoutHandler {
 }
 
 func (h *WorkoutHandler) GetWorkout(w http.ResponseWriter, r *http.Request) {
-	userId, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
-	if err != nil {
-		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+	userId := r.Header.Get("X-User-ID")
+	if userId == "" {
+		http.Error(w, "missing X-User-ID header", http.StatusUnauthorized)
 		return
 	}
 
@@ -41,7 +41,7 @@ func (h *WorkoutHandler) GetWorkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if userId != 0 && workout.UserID != userId {
+	if workout.UserID != userId {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
@@ -51,9 +51,9 @@ func (h *WorkoutHandler) GetWorkout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkoutHandler) GetSets(w http.ResponseWriter, r *http.Request) {
-	userId, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
-	if err != nil {
-		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+	userId := r.Header.Get("X-User-ID")
+	if userId == "" {
+		http.Error(w, "missing X-User-ID header", http.StatusUnauthorized)
 		return
 	}
 
@@ -93,9 +93,9 @@ func (h *WorkoutHandler) DeleteWorkout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkoutHandler) UpdateSet(w http.ResponseWriter, r *http.Request) {
-	userId, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
-	if err != nil {
-		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+	userId := r.Header.Get("X-User-ID")
+	if userId == "" {
+		http.Error(w, "missing X-User-ID header", http.StatusUnauthorized)
 		return
 	}
 
@@ -127,9 +127,9 @@ func (h *WorkoutHandler) UpdateSet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkoutHandler) DeleteSet(w http.ResponseWriter, r *http.Request) {
-	userId, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
-	if err != nil {
-		http.Error(w, "missing or invalid X-User-ID header", http.StatusUnauthorized)
+	userId := r.Header.Get("X-User-ID")
+	if userId == "" {
+		http.Error(w, "missing X-User-ID header", http.StatusUnauthorized)
 		return
 	}
 
@@ -152,8 +152,8 @@ func (h *WorkoutHandler) DeleteSet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkoutHandler) DeleteWorkoutsByUser(w http.ResponseWriter, r *http.Request) {
-	userId, err := strconv.ParseInt(r.PathValue("user_id"), 10, 64)
-	if err != nil {
+	userId := r.PathValue("user_id")
+	if userId == "" {
 		http.Error(w, "invalid user_id", http.StatusBadRequest)
 		return
 	}

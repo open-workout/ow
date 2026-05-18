@@ -36,7 +36,7 @@ func (r *RedisCachedRepository) DeleteWorkout(ctx context.Context, workoutId int
 	return r.repo.DeleteWorkout(ctx, workoutId)
 }
 
-func (r *RedisCachedRepository) DeleteWorkoutsByUserID(ctx context.Context, userId int64) error {
+func (r *RedisCachedRepository) DeleteWorkoutsByUserID(ctx context.Context, userId string) error {
 	return r.repo.DeleteWorkoutsByUserID(ctx, userId)
 }
 
@@ -44,18 +44,18 @@ func (r *RedisCachedRepository) CreateSet(ctx context.Context, set *domain.SetMo
 	return r.repo.CreateSet(ctx, set)
 }
 
-func (r *RedisCachedRepository) UpdateSet(ctx context.Context, userId int64, set *domain.SetModel) (*domain.SetModel, error) {
+func (r *RedisCachedRepository) UpdateSet(ctx context.Context, userId string, set *domain.SetModel) (*domain.SetModel, error) {
 	return r.repo.UpdateSet(ctx, userId, set)
 }
 
-func (r *RedisCachedRepository) DeleteSet(ctx context.Context, userId int64, setId int64) error {
+func (r *RedisCachedRepository) DeleteSet(ctx context.Context, userId string, setId int64) error {
 	return r.repo.DeleteSet(ctx, userId, setId)
 }
 
-func (r *RedisCachedRepository) GetSetsByWorkoutID(ctx context.Context, workoutId int64, userId int64) ([]*domain.SetModel, error) {
+func (r *RedisCachedRepository) GetSetsByWorkoutID(ctx context.Context, workoutId int64, userId string) ([]*domain.SetModel, error) {
 	return r.repo.GetSetsByWorkoutID(ctx, workoutId, userId)
 }
 
-func (r *RedisCachedRepository) GetLastTimeMaxSet(ctx context.Context, userId int64, exerciseId int64) (*domain.SetModel, error) {
+func (r *RedisCachedRepository) GetLastTimeMaxSet(ctx context.Context, userId string, exerciseId int64) (*domain.SetModel, error) {
 	return r.repo.GetLastTimeMaxSet(ctx, userId, exerciseId)
 }

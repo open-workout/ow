@@ -24,7 +24,7 @@ func NewLocalMediaStorage(baseDir, baseURL string) (*LocalMediaStorage, error) {
 }
 
 func (s *LocalMediaStorage) Upload(ctx context.Context, upload *domain.ExerciseMediaUpload) (string, error) {
-	filename := fmt.Sprintf("%d_%d_%s", upload.UserID, upload.ExerciseID, upload.Filename)
+	filename := fmt.Sprintf("%s_%d_%s", upload.UserID, upload.ExerciseID, upload.Filename)
 	destPath := filepath.Join(s.BaseDir, filename)
 
 	out, err := os.Create(destPath)

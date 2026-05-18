@@ -14,7 +14,7 @@ var ErrNotFound = errors.New("not found")
 
 type WorkoutModel struct {
 	WorkoutID  int64     `json:"workout_id"`
-	UserID     int64     `json:"user_id"`
+	UserID     string    `json:"user_id"`
 	Title      string    `json:"title,omitempty"`
 	StartedAt  time.Time `json:"started_at"`
 	FinishedAt time.Time `json:"finished_at,omitempty"`
@@ -43,13 +43,13 @@ func New(baseURL string) *Client {
 	}
 }
 
-func (c *Client) GetWorkoutById(ctx context.Context, userID int64, workoutID int64) (*WorkoutModel, error) {
+func (c *Client) GetWorkoutById(ctx context.Context, userID string, workoutID int64) (*WorkoutModel, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		fmt.Sprintf("%s/workouts/%d", c.baseURL, workoutID), nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("X-User-ID", fmt.Sprintf("%d", userID))
+	req.Header.Set("X-User-ID", userID)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -71,13 +71,13 @@ func (c *Client) GetWorkoutById(ctx context.Context, userID int64, workoutID int
 	return &workout, nil
 }
 
-func (c *Client) GetSetsByWorkoutID(ctx context.Context, userID int64, workoutID int64) ([]SetModel, error) {
+func (c *Client) GetSetsByWorkoutID(ctx context.Context, userID string, workoutID int64) ([]SetModel, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		fmt.Sprintf("%s/workouts/%d/sets", c.baseURL, workoutID), nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("X-User-ID", fmt.Sprintf("%d", userID))
+	req.Header.Set("X-User-ID", userID)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -99,7 +99,7 @@ func (c *Client) GetSetsByWorkoutID(ctx context.Context, userID int64, workoutID
 	return sets, nil
 }
 
-func (c *Client) UpdateSet(ctx context.Context, userID int64, set SetModel) (*SetModel, error) {
+func (c *Client) UpdateSet(ctx context.Context, userID string, set SetModel) (*SetModel, error) {
 	body, err := json.Marshal(set)
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (c *Client) UpdateSet(ctx context.Context, userID int64, set SetModel) (*Se
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", fmt.Sprintf("%d", userID))
+	req.Header.Set("X-User-ID", userID)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -133,13 +133,13 @@ func (c *Client) UpdateSet(ctx context.Context, userID int64, set SetModel) (*Se
 	return &updated, nil
 }
 
-func (c *Client) DeleteSet(ctx context.Context, userID int64, setID int64) error {
+func (c *Client) DeleteSet(ctx context.Context, userID string, setID int64) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete,
 		fmt.Sprintf("%s/sets/%d", c.baseURL, setID), nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("X-User-ID", fmt.Sprintf("%d", userID))
+	req.Header.Set("X-User-ID", userID)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
