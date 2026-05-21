@@ -35,7 +35,7 @@ func (r *SqlRepository) CreateUser(ctx context.Context, user *domain.User) (*dom
 	`
 	return scanUser(r.db.QueryRowContext(ctx, query,
 		user.UserId,
-		user.Email,
+		nullableEmail(user.Email),
 		user.Username,
 		pq.Array(goals),
 		user.Gender,
@@ -62,7 +62,7 @@ func (r *SqlRepository) UpdateUser(ctx context.Context, user *domain.User) (*dom
 		RETURNING user_id, email, username, sport_goals, gender, birthdate, split
 	`
 	return scanUser(r.db.QueryRowContext(ctx, query,
-		user.Email,
+		nullableEmail(user.Email),
 		user.Username,
 		pq.Array(goals),
 		user.Gender,
@@ -104,10 +104,11 @@ func (r *SqlRepository) UpdateSplit(ctx context.Context, userID string, split do
 func scanUser(row *sql.Row) (*domain.User, error) {
 	var u domain.User
 	var splitJSON []byte
+	var email sql.NullString
 
 	err := row.Scan(
 		&u.UserId,
-		&u.Email,
+		&email,
 		&u.Username,
 		pq.Array(&u.SportGoals),
 		&u.Gender,
@@ -118,9 +119,20 @@ func scanUser(row *sql.Row) (*domain.User, error) {
 		return nil, err
 	}
 
+	u.Email = email.String
+
 	if err := json.Unmarshal(splitJSON, &u.ExerciseSplit); err != nil {
 		return nil, err
 	}
 
 	return &u, nil
+}
+
+// nullableEmail converts an empty string to nil so the DB stores NULL,
+// allowing multiple users without an email to coexist under the unique constraint.
+func nullableEmail(email string) interface{} {
+	if email == "" {
+		return nil
+	}
+	return email
 }
