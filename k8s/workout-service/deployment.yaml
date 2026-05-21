@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workout-service
+  namespace: ow
+  labels:
+    app: workout-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workout-service
+  template:
+    metadata:
+      labels:
+        app: workout-service
+    spec:
+      containers:
+        - name: workout-service
+          image: workout-service
+          ports:
+            - containerPort: 8082
+          env:
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: ow-secrets
+                  key: POSTGRES_DSN_WORKOUT
+            - name: REDIS_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: ow-secrets
+                  key: REDIS_DSN
+            - name: PORT
+              value: "8082"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
