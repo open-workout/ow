@@ -32,7 +32,12 @@ for name, path, port in services:
 
     local_resource(
         name + '-build',
-        cmd = 'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/' + name + ' ./' + path + '/cmd/...',
+        cmd = 'go build -o bin/' + name + ' ./' + path + '/cmd/...',
+        env = {
+            'CGO_ENABLED': '0',
+            'GOOS': 'linux',
+            'GOARCH': 'amd64',
+        },
         deps = watch_paths,
         labels = ['build'],
     )
