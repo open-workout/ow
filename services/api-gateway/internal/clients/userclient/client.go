@@ -25,6 +25,7 @@ type Split struct {
 type User struct {
 	UserID        string   `json:"user_id"`
 	Email         string   `json:"email"`
+	Username      string   `json:"username"`
 	SportGoals    []string `json:"sport_goals"`
 	Gender        string   `json:"gender"`
 	Birthdate     string   `json:"birthdate"`

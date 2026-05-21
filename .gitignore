@@ -1,6 +1,7 @@
 .env
 .envrc
 bin/
+k8s/secret.yaml
 .idea/
 
 /apps/mobile/node_modules

@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exercise-service
+  namespace: ow
+  labels:
+    app: exercise-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: exercise-service
+  template:
+    metadata:
+      labels:
+        app: exercise-service
+    spec:
+      containers:
+        - name: exercise-service
+          image: exercise-service
+          ports:
+            - containerPort: 8083
+          env:
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: ow-secrets
+                  key: POSTGRES_DSN_EXERCISE
+            - name: REDIS_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: ow-secrets
+                  key: REDIS_DSN
+            - name: EXERCISE_SERVICE_PORT
+              value: "8083"
+            - name: MEDIA_BASE_ROOT
+              value: /uploads
+            - name: MEDIA_BASE_URL
+              value: http://localhost:8083/uploads
+          volumeMounts:
+            - name: media-storage
+              mountPath: /uploads
+          readinessProbe:
+            tcpSocket:
+              port: 8083
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: media-storage
+          emptyDir: {}
